@@ -1,6 +1,6 @@
 """Schemas for the reinstatement report endpoint."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 
 class ReportRequest(BaseModel):
@@ -39,6 +39,20 @@ class ReportRequest(BaseModel):
     model_selected: str = Field(
         default="gemini-3-flash-preview",
         description="Gemini model to use for generation.",
+    )
+    # Contact information for sending report via email
+    recipient_name: str = Field(
+        ...,
+        min_length=1,
+        description="Name of the recipient for the report.",
+    )
+    recipient_email: EmailStr = Field(
+        ...,
+        description="Email address to send the report to.",
+    )
+    recipient_phone: str | None = Field(
+        default=None,
+        description="Optional phone number of the recipient.",
     )
 
 

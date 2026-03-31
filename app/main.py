@@ -3,7 +3,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, contacts, reinstatement
+from app.routers import blogs, contacts, reinstatement
+from app.models import Contact, Blog  # Import models to register them with Base
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,16 +25,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS - strip whitespace from origins
-cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
-logger.info(f"CORS Origins configured: {cors_origins}")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 
@@ -52,8 +49,8 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-app.include_router(auth.router, prefix="/api")
 app.include_router(contacts.router, prefix="/api")
+app.include_router(blogs.router, prefix="/api")
 app.include_router(reinstatement.router, prefix="/api")
 
 

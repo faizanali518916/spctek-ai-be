@@ -12,6 +12,15 @@ class ContactCreate(BaseModel):
     source: str | None = "landing_page"
 
 
+class ContactUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    company: str | None = None
+    message: str | None = None
+    source: str | None = None
+
+
 class ContactRead(BaseModel):
     id: uuid.UUID
     name: str | None

@@ -3,8 +3,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import blogs, contacts, reinstatement
-from app.models import Contact, Blog  # Import models to register them with Base
+from app.routers import blogs, contacts, reinstatement, auth
+from app.models import Contact, Blog, User  # Import models to register them with Base
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(contacts.router, prefix="/api")
 app.include_router(blogs.router, prefix="/api")
 app.include_router(reinstatement.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
 
 @app.get("/api/health")

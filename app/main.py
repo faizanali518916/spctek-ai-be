@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import blogs, contacts, reinstatement, auth
+from app.routers import blogs, contacts, reinstatement, auth, deploy
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(blogs.router, prefix="/api")
 app.include_router(contacts.router, prefix="/api")
 app.include_router(reinstatement.router, prefix="/api")
+app.include_router(deploy.router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     GOOGLE_API_KEY: str = ""
     SECRET_KEY: str = "your-secret-key-change-in-production"
+    DEPLOY_PASSWORD: str = ""
 
     # Email configuration
     SMTP_HOST: str = "smtp.gmail.com"

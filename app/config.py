@@ -8,6 +8,7 @@ load_dotenv(BASE_DIR / ".env")
 
 
 class Settings(BaseSettings):
+    SECRET_KEY: str
     DATABASE_URL: str
     GOOGLE_API_KEY: str
     DEPLOY_PASSWORD: str

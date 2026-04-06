@@ -286,6 +286,14 @@ alembic upgrade head
 | `JWT_ALGORITHM`            | JWT algorithm                | `HS256`                                                       |
 | `ACCESS_TOKEN_EXPIRE_DAYS` | Token expiration time        | `7`                                                           |
 
+## Deployment
+
+For reference, the PM2 command to start the server is:
+
+```bash
+pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001" --name spctekai-backend --watch
+```
+
 ## Contributing
 
 1. Create a new branch for features/fixes
@@ -297,3 +305,7 @@ alembic upgrade head
 ## License
 
 Proprietary - SPCTEK AI
+
+```
+
+```

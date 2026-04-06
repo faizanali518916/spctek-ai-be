@@ -33,11 +33,7 @@ async def deploy(request: DeployRequest):
         )
 
     # Define deployment commands
-    commands = [
-        "git pull origin main",
-        "venv/bin/pip install -r requirements.txt",
-        "sudo systemctl restart fastapi",
-    ]
+    commands = ["git pull origin main", "venv/bin/pip install -r requirements.txt"]
 
     # Set the working directory
     cwd = "/home/spc/Desktop/spctekai-backend"
@@ -48,11 +44,11 @@ async def deploy(request: DeployRequest):
         try:
             result = subprocess.run(
                 command,
-                shell=True,
                 cwd=cwd,
-                capture_output=True,
                 text=True,
-                timeout=300,  # 5 minute timeout
+                shell=True,
+                timeout=300,
+                capture_output=True,
             )
 
             results.append(

@@ -10,7 +10,7 @@ class DeployRequest(BaseModel):
     password: str
 
 
-@router.post("/deploy")
+@router.post("/")
 async def deploy(request: DeployRequest):
     """
     Deployment webhook endpoint.

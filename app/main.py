@@ -27,6 +27,8 @@ app = FastAPI(
 CORS_ORIGINS = [
     "https://spctek.ai/",
     "https://www.spctek.ai/",
+    "https://spctek-ai-fe.vercel.app/",
+    "https://www.spctek-ai-fe.vercel.app/",
     "http://localhost:3000",
 ]
 
@@ -54,13 +56,13 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(blogs.router, prefix="/api")
-app.include_router(contacts.router, prefix="/api")
-app.include_router(reinstatement.router, prefix="/api")
-app.include_router(deploy.router, prefix="/api")
+app.include_router(auth.router)
+app.include_router(blogs.router)
+app.include_router(contacts.router)
+app.include_router(reinstatement.router)
+app.include_router(deploy.router)
 
 
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "spctek-ai-api"}

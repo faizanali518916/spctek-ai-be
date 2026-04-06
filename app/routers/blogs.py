@@ -10,7 +10,7 @@ from app.schemas.blog import BlogCreate, BlogRead, BlogUpdate
 router = APIRouter(prefix="/blogs", tags=["Blogs"])
 
 
-@router.post("/", response_model=BlogRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BlogRead, status_code=status.HTTP_201_CREATED)
 async def create_blog(blog_data: BlogCreate, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(Blog).where(Blog.slug == blog_data.slug))
     if existing.scalar_one_or_none() is not None:
@@ -26,7 +26,7 @@ async def create_blog(blog_data: BlogCreate, db: AsyncSession = Depends(get_db))
     return blog
 
 
-@router.get("/", response_model=list[BlogRead])
+@router.get("", response_model=list[BlogRead])
 async def list_blogs(
     skip: int = 0,
     limit: int = 50,

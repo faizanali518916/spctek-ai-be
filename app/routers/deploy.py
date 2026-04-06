@@ -1,7 +1,9 @@
-import os
 import subprocess
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, status
+from app.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(prefix="/deploy", tags=["Deployment"])
 
@@ -10,14 +12,14 @@ class DeployRequest(BaseModel):
     password: str
 
 
-@router.post("/")
+@router.post("")
 async def deploy(request: DeployRequest):
     """
     Deployment webhook endpoint.
     Requires correct DEPLOY_PASSWORD to execute deployment commands.
     """
     # Get the deployment password from environment variable
-    deploy_password = os.getenv("DEPLOY_PASSWORD")
+    deploy_password = settings.DEPLOY_PASSWORD
 
     if not deploy_password:
         raise HTTPException(

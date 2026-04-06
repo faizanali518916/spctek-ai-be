@@ -18,17 +18,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
+    version="1.0.0",
     title="SPCTEK AI API",
     description="Backend API for SPCTEK AI platform",
-    version="0.1.0",
     lifespan=lifespan,
 )
 
 CORS_ORIGINS = [
-    "https://spctek.ai/",
-    "https://www.spctek.ai/",
-    "https://spctek-ai-fe.vercel.app/",
-    "https://www.spctek-ai-fe.vercel.app/",
+    "https://spctek.ai",
+    "https://www.spctek.ai",
+    "https://spctek-ai-fe.vercel.app",
+    "https://www.spctek-ai-fe.vercel.app",
     "http://localhost:3000",
 ]
 

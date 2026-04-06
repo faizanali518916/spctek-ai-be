@@ -1,13 +1,14 @@
-import os
 import requests
+from app.config import get_settings
+
+settings = get_settings()
 
 # Configuration
 URL = "https://api.spctek.ai:8000/deploy"
 
 
 def trigger_deploy():
-    # Fetch the password from the environment variable 'DEPLOY_PASSWORD'
-    password = os.getenv("DEPLOY_PASSWORD")
+    password = settings.DEPLOY_PASSWORD
 
     if not password:
         print("❌ Error: 'DEPLOY_PASSWORD' environment variable is not set.")

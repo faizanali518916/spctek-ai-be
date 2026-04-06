@@ -9,7 +9,7 @@ from app.schemas.contact import ContactCreate, ContactRead, ContactUpdate
 router = APIRouter(prefix="/contacts", tags=["Contacts"])
 
 
-@router.post("/", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
 async def create_contact(
     contact_data: ContactCreate, db: AsyncSession = Depends(get_db)
 ):
@@ -26,7 +26,7 @@ async def create_contact(
     return contact
 
 
-@router.get("/", response_model=list[ContactRead])
+@router.get("", response_model=list[ContactRead])
 async def list_contacts(
     skip: int = 0,
     limit: int = 50,

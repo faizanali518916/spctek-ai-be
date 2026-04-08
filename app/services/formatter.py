@@ -1,5 +1,3 @@
-"""PDF formatter for converting markdown reports to PDF using ReportLab."""
-
 import re
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle

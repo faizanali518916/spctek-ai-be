@@ -1,8 +1,3 @@
-"""
-Script to add users to the database.
-Usage: python app/utils/add_user.py
-"""
-
 import asyncio
 import sys
 from pathlib import Path

@@ -1,13 +1,8 @@
-"""Reinstatement report generation service."""
-
 import logging
 import tempfile
-import asyncio
-from pathlib import Path
-from app.services.gemini_client import generate
-from app.services.instructions import SYSTEM_INSTRUCTIONS
+from app.services.llm_client import generate
 from app.services.formatter import write_formatted_report
-from app.services.email import send_reinstatement_report_email
+from app.services.instructions import SYSTEM_INSTRUCTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -46,15 +41,11 @@ def generate_report(
     appeals_made: int,
     seller_belief: str,
     available_documents: str,
-    recipient_name: str,
-    recipient_email: str,
-    recipient_phone: str | None = None,
-    model: str | None = None,
 ) -> str:
     """Generate a reinstatement assessment report and send via email as PDF.
 
     Sends the structured user input together with the system instructions
-    to the Gemini model, converts to PDF, sends via email, and returns
+    to the LLM model, converts to PDF, sends via email, and returns
     the markdown report text for display.
 
     Args:
@@ -64,10 +55,6 @@ def generate_report(
         appeals_made: Number of prior appeal attempts.
         seller_belief: Seller's own explanation of the suspension.
         available_documents: Comma-separated list of available docs.
-        recipient_name: Name of the recipient for the report.
-        recipient_email: Email to send the report to.
-        recipient_phone: Optional phone number of the recipient.
-        model: Optional Gemini model override.
 
     Returns:
         The generated markdown report.
@@ -90,11 +77,9 @@ INPUT
 Respond strictly in the defined format.
 """
 
-    logger.info("Sending reinstatement prompt to Gemini (model=%s)", model)
-    response = generate(prompt, model=model)
+    response = generate(prompt)
     logger.info("Reinstatement report generated successfully")
 
-    # Create temporary PDF file
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             pdf_file_path = tmp_file.name
@@ -102,20 +87,7 @@ Respond strictly in the defined format.
         logger.info(f"Converting report to PDF: {pdf_file_path}")
         write_formatted_report(response, pdf_file_path)
 
-        # Send email asynchronously
-        logger.info(f"Sending report email to {recipient_email}")
-        # Note: This is a sync function, but we can still run the async email send
-        # by creating a new event loop if needed, or use a background task in production
-        try:
-            # If we're already in an async context, this won't work
-            # For now, we'll log an info message and let the router handle async sending
-            logger.info(f"Report PDF saved for email delivery to {recipient_email}")
-        except Exception as e:
-            logger.error(f"Error in email delivery setup: {str(e)}")
-
     except Exception as e:
         logger.error(f"Error converting report to PDF: {str(e)}", exc_info=True)
-        # Even if PDF conversion fails, return the markdown report
-        # so the user can see it on the frontend
 
     return response

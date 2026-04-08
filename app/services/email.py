@@ -1,12 +1,10 @@
-"""Email service for sending reinstatement reports via email."""
-
 import smtplib
 import logging
 from pathlib import Path
-from email.mime.multipart import MIMEMultipart
+from email import encoders
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
-from email import encoders
+from email.mime.multipart import MIMEMultipart
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -45,34 +43,63 @@ def send_reinstatement_report_email(
             logger.error(f"PDF file not found: {pdf_file_path}")
             return False
 
-        # Create email message
-        msg = MIMEMultipart()
-        msg["From"] = f"{settings.FROM_NAME} <{settings.SMTP_USER}>"
+        # 1. Create the root message container (multipart/mixed for attachments)
+        msg = MIMEMultipart("mixed")
         msg["To"] = recipient_email
-        msg["Subject"] = "Your Amazon Seller Reinstatement Report from SPCTEK AI"
+        msg["From"] = f"SPCTEK AI <{settings.SMTP_USER}>"
+        msg["Subject"] = "Your Amazon Reinstatement Assessment Report"
 
-        # Email body
-        body = f"""Dear {recipient_name},
+        # 2. Create the body container (multipart/alternative for Plain + HTML)
+        msg_body = MIMEMultipart("alternative")
 
-Thank you for using SPCTEK AI's Amazon Seller Reinstatement Estimator.
+        # Plain-text version (fallback)
+        text_content = f"Dear {recipient_name},\n\nThank you for using SPCTEK AI. Your report is attached."
 
-Attached is your comprehensive reinstatement assessment report. This report includes:
-- Root cause analysis of your account suspension
-- Document checklist for reinstatement
-- Reinstatement success probability estimates
-- Actionable steps for account recovery
+        # Rich HTML version
+        html_content = f"""
+        <html>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+                    <div style="background-color: #606bfa; padding: 20px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Reinstatement Assessment</h1>
+                    </div>
+                    <div style="padding: 30px; background-color: #ffffff;">
+                        <p style="font-size: 16px;">Dear <strong>{recipient_name}</strong>,</p>
+                        <p>Thank you for using <strong>SPCTEK AI</strong>. Our analysis of your Amazon Performance Notification is complete.</p>
+                        
+                        <div style="background-color: #f8f9ff; border-left: 4px solid #606bfa; padding: 15px; margin: 20px 0;">
+                            <p style="margin: 0; font-weight: bold; color: #4e59e5;">What's inside your report:</p>
+                            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                                <li>Root Cause Identification</li>
+                                <li>Required Documentation Checklist</li>
+                                <li>Reinstatement Probability Score</li>
+                                <li>Step-by-Step Recovery Action Plan</li>
+                            </ul>
+                        </div>
 
-Please review the report carefully and follow the recommended steps for the best chance of reinstatement.
+                        <p>Please find your comprehensive <strong>PDF report attached</strong> to this email.</p>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <p style="font-size: 14px; color: #666;">Need professional help with your appeal?</p>
+                            <a href="https://spctek-ai-fe.vercel.app/#contact" style="background-color: #606bfa; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Speak to an Expert</a>
+                        </div>
+                    </div>
+                    <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 12px; color: #888;">
+                        <p style="margin: 5px 0;">&copy; 2026 SPCTEK AI. All rights reserved.</p>
+                        <p style="margin: 5px 0;">This is an automated AI-generated assessment.</p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
 
-If you have any questions, feel free to reach out to our team.
+        msg_body.attach(MIMEText(text_content, "plain"))
+        msg_body.attach(MIMEText(html_content, "html"))
 
-Best regards,
-SPCTEK AI Team
-"""
+        # Attach the body container to the main message
+        msg.attach(msg_body)
 
-        msg.attach(MIMEText(body, "plain"))
-
-        # Attach PDF file
+        # 3. Attach PDF file
         with open(pdf_path, "rb") as attachment:
             part = MIMEBase("application", "octet-stream")
             part.set_payload(attachment.read())
@@ -80,11 +107,11 @@ SPCTEK AI Team
         encoders.encode_base64(part)
         part.add_header(
             "Content-Disposition",
-            f"attachment; filename= {pdf_path.name}",
+            f"attachment; filename=Reinstatement_Report_{recipient_name.replace(' ', '_')}.pdf",
         )
         msg.attach(part)
 
-        # Send email
+        # 4. Send email (Same SMTP logic as before)
         logger.info(f"Sending reinstatement report to {recipient_email}")
         logger.info(f"Using SMTP host: {settings.SMTP_HOST}:{settings.SMTP_PORT}")
 

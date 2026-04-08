@@ -11,11 +11,12 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     DATABASE_URL: str
     GOOGLE_API_KEY: str
+    OPENROUTER_API_KEY: str
     DEPLOY_PASSWORD: str
 
     # SMTP Settings
-    SMTP_HOST: str
     SMTP_PORT: int
+    SMTP_HOST: str
     SMTP_USER: str
     SMTP_PASS: str
 

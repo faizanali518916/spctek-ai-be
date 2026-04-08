@@ -1,5 +1,3 @@
-"""Router for Amazon reinstatement report generation."""
-
 import logging
 import tempfile
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request
@@ -64,8 +62,7 @@ async def create_report(
     """
     try:
         logger.info(
-            "Report request received: model=%s, business_model=%s, recipient_email=%s",
-            payload.model_selected,
+            "Report request received: business_model=%s, recipient_email=%s",
             payload.business_model,
             payload.recipient_email,
         )
@@ -78,10 +75,6 @@ async def create_report(
             appeals_made=payload.appeals_made,
             seller_belief=payload.seller_belief,
             available_documents=payload.available_documents,
-            recipient_name=payload.recipient_name,
-            recipient_email=payload.recipient_email,
-            recipient_phone=payload.recipient_phone,
-            model=payload.model_selected,
         )
 
         logger.info("Report generated successfully, adding email task to background")

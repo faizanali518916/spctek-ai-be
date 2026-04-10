@@ -81,7 +81,7 @@ def send_reinstatement_report_email(
                         
                         <div style="text-align: center; margin: 30px 0;">
                             <p style="font-size: 14px; color: #666;">Need professional help with your appeal?</p>
-                            <a href="https://spctek-ai-fe.vercel.app/#contact" style="background-color: #606bfa; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Speak to an Expert</a>
+                            <a href="https://spctek-ai-fe.vercel.app/contact" style="background-color: #606bfa; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Speak to an Expert</a>
                         </div>
                     </div>
                     <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 12px; color: #888;">

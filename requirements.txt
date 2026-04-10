@@ -22,3 +22,6 @@ openai>=1.50.0
 
 # Document Generation
 reportlab>=4.0.0
+
+# Code Formatting & Linting
+black>=23.3.0

@@ -23,9 +23,7 @@ def generate(prompt: str) -> str:
     target_model = "openrouter/free"
     client = _get_client()
 
-    logger.info(
-        "Generating content via OpenRouter (Free Tier) with model: %s", target_model
-    )
+    logger.info("Generating content via OpenRouter (Free Tier) with model: %s", target_model)
     try:
         response = client.chat.completions.create(
             model=target_model,

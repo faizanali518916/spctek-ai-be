@@ -7,6 +7,7 @@ class BlogBase(BaseModel):
     title: str
     slug: str
     summary: str | None = None
+    thumbnail_url: str
     content: str
     author: str | None = None
     is_published: bool = False
@@ -17,12 +18,13 @@ class BlogCreate(BlogBase):
 
 
 class BlogUpdate(BaseModel):
-    title: str | None = None
-    slug: str | None = None
+    title: str
+    slug: str
     summary: str | None = None
-    content: str | None = None
+    thumbnail_url: str
+    content: str
     author: str | None = None
-    is_published: bool | None = None
+    is_published: bool = False
 
 
 class BlogRead(BlogBase):

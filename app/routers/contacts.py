@@ -10,9 +10,7 @@ router = APIRouter(prefix="/contacts", tags=["Contacts"])
 
 
 @router.post("", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
-async def create_contact(
-    contact_data: ContactCreate, db: AsyncSession = Depends(get_db)
-):
+async def create_contact(contact_data: ContactCreate, db: AsyncSession = Depends(get_db)):
     if not contact_data.email and not contact_data.phone:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -32,9 +30,7 @@ async def list_contacts(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Contact).order_by(Contact.created_at.desc()).offset(skip).limit(limit)
-    )
+    result = await db.execute(select(Contact).order_by(Contact.created_at.desc()).offset(skip).limit(limit))
     return result.scalars().all()
 
 

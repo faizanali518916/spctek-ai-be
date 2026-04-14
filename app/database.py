@@ -7,10 +7,7 @@ settings = get_settings()
 
 # Configure SSL for asyncpg - only for remote databases
 ssl_context = None
-if (
-    "localhost" not in settings.DATABASE_URL
-    and "127.0.0.1" not in settings.DATABASE_URL
-):
+if "localhost" not in settings.DATABASE_URL and "127.0.0.1" not in settings.DATABASE_URL:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = True
     ssl_context.verify_mode = ssl.CERT_REQUIRED

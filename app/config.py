@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str
     OPENROUTER_API_KEY: str
     DEPLOY_PASSWORD: str
+    R2_ACCOUNT_ID: str
+    R2_BUCKET_NAME: str
+    R2_TOKEN_VALUE: str
+    R2_ACCESS_KEY_ID: str
+    R2_SECRET_ACCESS_KEY: str
+    R2_S3_API_ENDPOINT: str | None = None
+    R2_PUBLIC_BASE_URL: str | None = None
 
     # SMTP Settings
     SMTP_PORT: int

@@ -288,10 +288,13 @@ alembic upgrade head
 
 ## Deployment
 
-For reference, the PM2 command to start the server is:
+For reference, the PM2 commands to start the deployment are:
 
 ```bash
-pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001" --name spctekai-backend --watch
+cd spctekai-backend/
+source venv/bin/activate
+pip install -r requirements.txt
+pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001" --name spctekai-backend
 ```
 
 ## Contributing
@@ -305,7 +308,3 @@ pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.
 ## License
 
 Proprietary - SPCTEK AI
-
-```
-
-```

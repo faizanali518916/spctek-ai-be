@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import blogs, contacts, reinstatement, auth, deploy
+from app.routers import blogs, contacts, reinstatement, auth, deploy, r2
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,9 +44,7 @@ app.add_middleware(
 # Debug middleware to log all requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info(
-        f"{request.method} {request.url.path} - Origin: {request.headers.get('origin', 'N/A')}"
-    )
+    logger.info(f"{request.method} {request.url.path} - Origin: {request.headers.get('origin', 'N/A')}")
     try:
         response = await call_next(request)
         logger.info(f"Status: {response.status_code}")
@@ -61,6 +59,7 @@ app.include_router(blogs.router)
 app.include_router(contacts.router)
 app.include_router(reinstatement.router)
 app.include_router(deploy.router)
+app.include_router(r2.router)
 
 
 @app.get("/health")

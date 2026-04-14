@@ -139,7 +139,5 @@ def send_reinstatement_report_email(
         return True
 
     except Exception as e:
-        logger.error(
-            f"Failed to send email to {recipient_email}: {str(e)}", exc_info=True
-        )
+        logger.error(f"Failed to send email to {recipient_email}: {str(e)}", exc_info=True)
         return False

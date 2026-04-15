@@ -297,6 +297,16 @@ pip install -r requirements.txt
 pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001" --name spctekai-backend
 ```
 
+Commands to deploy new update:
+
+```bash
+cd spctekai-backend/
+git pull origin main
+source venv/bin/activate
+pip install -r requirements.txt
+pm2 restart spctekai-backend
+```
+
 ## Contributing
 
 1. Create a new branch for features/fixes

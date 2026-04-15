@@ -2,11 +2,13 @@ import json
 import logging
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.blog import Blog
+from app.models.category import Category
 from app.schemas.blog import BlogCreate, BlogRead, BlogUpdate
 from app.config import get_settings
 from app.routers.r2 import get_r2_client
@@ -14,6 +16,25 @@ from app.routers.r2 import get_r2_client
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/blogs", tags=["Blogs"])
+
+
+async def get_categories_by_ids(category_ids: list[uuid.UUID], db: AsyncSession) -> list[Category]:
+    if not category_ids:
+        return []
+
+    result = await db.execute(select(Category).where(Category.id.in_(category_ids)))
+    categories = result.scalars().all()
+
+    found_ids = {category.id for category in categories}
+    missing_ids = [str(category_id) for category_id in category_ids if category_id not in found_ids]
+    if missing_ids:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid category_ids: {', '.join(missing_ids)}",
+        )
+
+    category_by_id = {category.id: category for category in categories}
+    return [category_by_id[category_id] for category_id in category_ids]
 
 
 def extract_r2_key(url: str, settings) -> str | None:
@@ -83,26 +104,54 @@ async def create_blog(blog_data: BlogCreate, db: AsyncSession = Depends(get_db))
             detail="A blog with this slug already exists",
         )
 
-    blog = Blog(**blog_data.model_dump())
+    payload = blog_data.model_dump(exclude={"category_ids"})
+    blog = Blog(**payload)
+    blog.categories = await get_categories_by_ids(blog_data.category_ids, db)
+
     db.add(blog)
     await db.commit()
-    await db.refresh(blog)
-    return blog
+
+    created = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog.id))
+    return created.scalar_one()
 
 
 @router.get("", response_model=list[BlogRead])
 async def list_blogs(
+    search: str | None = None,
+    category: str | None = None,
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Blog).order_by(Blog.created_at.desc()).offset(skip).limit(limit))
+    query = select(Blog).options(selectinload(Blog.categories))
+
+    if category:
+        query = query.join(Blog.categories).where(Category.slug == category.strip().lower())
+
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.where(
+            or_(
+                Blog.title.ilike(term),
+                Blog.summary.ilike(term),
+                Blog.author.ilike(term),
+                Blog.slug.ilike(term),
+            )
+        )
+
+    result = await db.execute(
+        query
+        .distinct()
+        .order_by(Blog.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     return result.scalars().all()
 
 
 @router.get("/{blog_id}", response_model=BlogRead)
 async def get_blog(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Blog).where(Blog.id == blog_id))
+    result = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog_id))
     blog = result.scalar_one_or_none()
     if blog is None:
         raise HTTPException(
@@ -118,7 +167,7 @@ async def update_blog(
     blog_data: BlogUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Blog).where(Blog.id == blog_id))
+    result = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog_id))
     blog = result.scalar_one_or_none()
     if blog is None:
         raise HTTPException(
@@ -135,12 +184,17 @@ async def update_blog(
                 detail="A blog with this slug already exists",
             )
 
+    category_ids = update_data.pop("category_ids", None)
+    if category_ids is not None:
+        blog.categories = await get_categories_by_ids(category_ids, db)
+
     for field, value in update_data.items():
         setattr(blog, field, value)
 
     await db.commit()
-    await db.refresh(blog)
-    return blog
+
+    updated = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog.id))
+    return updated.scalar_one()
 
 
 @router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)

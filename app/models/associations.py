@@ -3,7 +3,6 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 
-
 blog_categories_association = Table(
     "blog_categories",
     Base.metadata,

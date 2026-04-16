@@ -1,9 +1,10 @@
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+
 from app.config import get_settings
 from app.routers import blogs, contacts, reinstatement, auth, categories, deploy, r2
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,6 @@ app = FastAPI(
 CORS_ORIGINS = [
     "https://spctek.ai",
     "https://www.spctek.ai",
-    "https://spctek-ai-fe.vercel.app",
-    "https://www.spctek-ai-fe.vercel.app",
     "http://localhost:3000",
 ]
 

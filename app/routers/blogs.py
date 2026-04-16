@@ -139,13 +139,7 @@ async def list_blogs(
             )
         )
 
-    result = await db.execute(
-        query
-        .distinct()
-        .order_by(Blog.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    result = await db.execute(query.distinct().order_by(Blog.created_at.desc()).offset(skip).limit(limit))
     return result.scalars().all()
 
 

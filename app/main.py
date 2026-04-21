@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.routers import blogs, contacts, reinstatement, auth, categories, deploy, r2
+from app.routers import content, contacts, reinstatement, auth, categories, deploy, r2
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def log_requests(request: Request, call_next):
 
 
 app.include_router(auth.router)
-app.include_router(blogs.router)
+app.include_router(content.router)
 app.include_router(categories.router)
 app.include_router(contacts.router)
 app.include_router(reinstatement.router)

@@ -1,21 +1,20 @@
 import json
 import logging
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.blog import Blog
-from app.models.category import Category
-from app.schemas.blog import BlogCreate, BlogRead, BlogUpdate
 from app.config import get_settings
-from app.routers.r2 import get_r2_client
+from app.models.content import Content, ContentType
+from app.models.category import Category
+from app.schemas.content import ContentCreate, ContentRead, ContentUpdate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/blogs", tags=["Blogs"])
+router = APIRouter(prefix="/content", tags=["Content"])
 
 
 async def get_categories_by_ids(category_ids: list[uuid.UUID], db: AsyncSession) -> list[Category]:
@@ -67,19 +66,19 @@ def extract_r2_key(url: str, settings) -> str | None:
     return None
 
 
-def extract_all_blog_images(blog: Blog, settings) -> list[str]:
+def extract_all_content_images(content: Content, settings) -> list[str]:
     keys = []
 
     # Extract thumbnail
-    if blog.thumbnail_url:
-        k = extract_r2_key(blog.thumbnail_url, settings)
+    if content.thumbnail_url:
+        k = extract_r2_key(content.thumbnail_url, settings)
         if k:
             keys.append(k)
 
     # Extract images from content
-    if blog.content:
+    if content.content:
         try:
-            content_data = json.loads(blog.content)
+            content_data = json.loads(content.content)
             blocks = content_data.get("blocks", [])
             for block in blocks:
                 if block.get("type") == "image":
@@ -90,115 +89,128 @@ def extract_all_blog_images(blog: Blog, settings) -> list[str]:
                         if k:
                             keys.append(k)
         except Exception as e:
-            logger.warning(f"Error parsing blog content for images: {e}")
+            logger.warning(f"Error parsing content body for images: {e}")
 
     return list(set(keys))
 
 
-@router.post("", response_model=BlogRead, status_code=status.HTTP_201_CREATED)
-async def create_blog(blog_data: BlogCreate, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(Blog).where(Blog.slug == blog_data.slug))
+@router.post("", response_model=ContentRead, status_code=status.HTTP_201_CREATED)
+async def create_content(content_data: ContentCreate, db: AsyncSession = Depends(get_db)):
+    existing = await db.execute(select(Content).where(Content.slug == content_data.slug))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A blog with this slug already exists",
+            detail="A content item with this slug already exists",
         )
 
-    payload = blog_data.model_dump(exclude={"category_ids"})
-    blog = Blog(**payload)
-    blog.categories = await get_categories_by_ids(blog_data.category_ids, db)
+    payload = content_data.model_dump(exclude={"category_ids"})
+    content = Content(**payload)
+    content.categories = await get_categories_by_ids(content_data.category_ids, db)
 
-    db.add(blog)
+    db.add(content)
     await db.commit()
 
-    created = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog.id))
+    created = await db.execute(
+        select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
+    )
     return created.scalar_one()
 
 
-@router.get("", response_model=list[BlogRead])
-async def list_blogs(
+@router.get("", response_model=list[ContentRead])
+async def list_content(
+    content_type: ContentType = Query(..., alias="type"),
     search: str | None = None,
     category: str | None = None,
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Blog).options(selectinload(Blog.categories))
+    query = select(Content).options(selectinload(Content.categories)).where(Content.type == content_type)
 
     if category:
-        query = query.join(Blog.categories).where(Category.slug == category.strip().lower())
+        query = query.join(Content.categories).where(Category.slug == category.strip().lower())
 
     if search and search.strip():
         term = f"%{search.strip()}%"
         query = query.where(
             or_(
-                Blog.title.ilike(term),
-                Blog.summary.ilike(term),
-                Blog.author.ilike(term),
-                Blog.slug.ilike(term),
+                Content.title.ilike(term),
+                Content.summary.ilike(term),
+                Content.author.ilike(term),
+                Content.slug.ilike(term),
             )
         )
 
-    result = await db.execute(query.distinct().order_by(Blog.created_at.desc()).offset(skip).limit(limit))
+    result = await db.execute(query.distinct().order_by(Content.created_at.desc()).offset(skip).limit(limit))
     return result.scalars().all()
 
 
-@router.get("/{blog_id}", response_model=BlogRead)
-async def get_blog(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog_id))
-    blog = result.scalar_one_or_none()
-    if blog is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog not found",
-        )
-    return blog
-
-
-@router.put("/{blog_id}", response_model=BlogRead)
-async def update_blog(
-    blog_id: uuid.UUID,
-    blog_data: BlogUpdate,
+@router.get("/{content_id}", response_model=ContentRead)
+async def get_content(
+    content_id: uuid.UUID,
+    content_type: ContentType = Query(..., alias="type"),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog_id))
-    blog = result.scalar_one_or_none()
-    if blog is None:
+    result = await db.execute(
+        select(Content)
+        .options(selectinload(Content.categories))
+        .where(Content.id == content_id, Content.type == content_type)
+    )
+    content = result.scalar_one_or_none()
+    if content is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog not found",
+            detail="Content not found",
+        )
+    return content
+
+
+@router.put("/{content_id}", response_model=ContentRead)
+async def update_content(
+    content_id: uuid.UUID,
+    content_data: ContentUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Content).options(selectinload(Content.categories)).where(Content.id == content_id))
+    content = result.scalar_one_or_none()
+    if content is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found",
         )
 
-    update_data = blog_data.model_dump(exclude_unset=True)
-    if "slug" in update_data and update_data["slug"] != blog.slug:
-        existing = await db.execute(select(Blog).where(Blog.slug == update_data["slug"]))
+    update_data = content_data.model_dump(exclude_unset=True)
+    if "slug" in update_data and update_data["slug"] != content.slug:
+        existing = await db.execute(select(Content).where(Content.slug == update_data["slug"]))
         if existing.scalar_one_or_none() is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="A blog with this slug already exists",
+                detail="A content item with this slug already exists",
             )
 
     category_ids = update_data.pop("category_ids", None)
     if category_ids is not None:
-        blog.categories = await get_categories_by_ids(category_ids, db)
+        content.categories = await get_categories_by_ids(category_ids, db)
 
     for field, value in update_data.items():
-        setattr(blog, field, value)
+        setattr(content, field, value)
 
     await db.commit()
 
-    updated = await db.execute(select(Blog).options(selectinload(Blog.categories)).where(Blog.id == blog.id))
+    updated = await db.execute(
+        select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
+    )
     return updated.scalar_one()
 
 
-@router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_blog(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Blog).where(Blog.id == blog_id))
-    blog = result.scalar_one_or_none()
-    if blog is None:
+@router.delete("/{content_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_content(content_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Content).where(Content.id == content_id))
+    content = result.scalar_one_or_none()
+    if content is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Blog not found",
+            detail="Content not found",
         )
 
     # Automatically delete associated images from R2
@@ -206,7 +218,7 @@ async def delete_blog(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
     settings = get_settings()
     if settings.R2_BUCKET_NAME:
-        image_keys = extract_all_blog_images(blog, settings)
+        image_keys = extract_all_content_images(content, settings)
         if image_keys:
             try:
                 from app.routers.r2 import get_r2_client
@@ -219,7 +231,7 @@ async def delete_blog(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
                     batch = delete_requests[i : i + 1000]
                     client.delete_objects(Bucket=settings.R2_BUCKET_NAME, Delete={"Objects": batch, "Quiet": True})
             except Exception as e:
-                logger.error(f"Failed to delete images from R2 for blog {blog_id}: {e}")
+                logger.error(f"Failed to delete images from R2 for content {content_id}: {e}")
 
-    await db.delete(blog)
+    await db.delete(content)
     await db.commit()

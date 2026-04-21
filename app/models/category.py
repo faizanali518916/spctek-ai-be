@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.associations import blog_categories_association
+from app.models.associations import content_categories_association
 
 
 class Category(Base):
@@ -19,7 +19,7 @@ class Category(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    blogs: Mapped[list["Blog"]] = relationship(
-        secondary=blog_categories_association,
+    contents: Mapped[list["Content"]] = relationship(
+        secondary=content_categories_association,
         back_populates="categories",
     )

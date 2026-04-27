@@ -73,7 +73,11 @@ async def update_contact(
         )
 
     for field, value in update_data.items():
-        setattr(contact, field, value)
+        if field == "journey" and contact.journey:
+            merged_journey = {**contact.journey, **value}
+            setattr(contact, field, merged_journey)
+        else:
+            setattr(contact, field, value)
 
     if not contact.email and not contact.phone:
         raise HTTPException(

@@ -53,7 +53,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/spctek_ai
 .\venv\Scripts\activate
 
 # Run the API server
-uvicorn app.main:app --reload
+py -m uvicorn app.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
@@ -87,7 +87,7 @@ alembic history
 
 ```powershell
 # Generate a new migration after model changes
-alembic revision --autogenerate -m "Description of changes"
+py -m alembic revision --autogenerate -m "Description of changes"
 
 # Then apply it
 alembic upgrade head

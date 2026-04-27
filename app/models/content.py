@@ -2,11 +2,13 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, func
 
 from app.database import Base
+from app.models.author import Author
+from app.models.category import Category
 from app.models.associations import content_categories_association
 
 
@@ -21,9 +23,9 @@ class Content(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
     summary: Mapped[str | None] = mapped_column(String(500), nullable=False)
-    author: Mapped[str | None] = mapped_column(String(120), nullable=False)
     thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=False)
     type: Mapped[ContentType] = mapped_column(
         Enum(ContentType, name="contenttype", create_type=False),
@@ -35,6 +37,9 @@ class Content(Base):
         secondary=content_categories_association,
         back_populates="contents",
     )
+    author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("authors.id"), nullable=True)
+    author_rel: Mapped["Author"] = relationship("Author", back_populates="contents")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

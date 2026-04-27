@@ -1,35 +1,31 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
-class ContactCreate(BaseModel):
+class ContactBase(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
     phone: str | None = None
     company: str | None = None
     message: str | None = None
     source: str | None = "landing_page"
+    journey: dict | None = Field(default_factory=dict)
 
 
-class ContactUpdate(BaseModel):
-    name: str | None = None
-    email: EmailStr | None = None
-    phone: str | None = None
-    company: str | None = None
-    message: str | None = None
+class ContactCreate(ContactBase):
+    pass
+
+
+class ContactUpdate(ContactBase):
     source: str | None = None
 
 
-class ContactRead(BaseModel):
+class ContactRead(ContactBase):
     id: uuid.UUID
-    name: str | None
-    email: str | None
-    phone: str | None
-    company: str | None
-    message: str | None
-    source: str | None
     created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
+        populate_by_name = True

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2
+from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ app.include_router(categories.router)
 app.include_router(reinstatement.router)
 app.include_router(deploy.router)
 app.include_router(r2.router)
+app.include_router(metadeck.router)
 
 
 @app.get("/health")

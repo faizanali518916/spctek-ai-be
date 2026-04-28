@@ -1,6 +1,6 @@
-import json
 import uuid
 import logging
+from enum import Enum
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,11 @@ from app.schemas.content import ContentCreate, ContentRead, ContentUpdate
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/content", tags=["Content"])
+
+
+class LookupField(str, Enum):
+    UUID = "uuid"
+    SLUG = "slug"
 
 
 async def get_categories_by_ids(category_ids: list[uuid.UUID], db: AsyncSession) -> list[Category]:
@@ -153,23 +158,34 @@ async def list_content(
     return result.scalars().all()
 
 
-@router.get("/{content_id}", response_model=ContentRead)
+@router.get("/{identifier}", response_model=ContentRead)
 async def get_content(
-    content_id: uuid.UUID,
+    identifier: str,
     content_type: ContentType = Query(..., alias="type"),
+    lookup_field: LookupField = Query(LookupField.UUID),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
+    query = (
         select(Content)
         .options(selectinload(Content.categories), selectinload(Content.author_rel))
-        .where(Content.id == content_id, Content.type == content_type)
+        .where(Content.type == content_type)
     )
+
+    if lookup_field == LookupField.UUID:
+        try:
+            target_id = uuid.UUID(identifier)
+            query = query.where(Content.id == target_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid UUID format")
+    else:
+        query = query.where(Content.slug == identifier)
+
+    result = await db.execute(query)
     content = result.scalar_one_or_none()
-    if content is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Content not found",
-        )
+
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
     return content
 
 

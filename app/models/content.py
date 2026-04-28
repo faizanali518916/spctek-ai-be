@@ -1,12 +1,11 @@
 import enum
 import uuid
-from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import Boolean, Enum, ForeignKey, String
 
-from app.database import Base
+from app.database import Base, TimestampMixin
 from app.models.author import Author
 from app.models.category import Category
 from app.models.associations import content_categories_association
@@ -17,10 +16,9 @@ class ContentType(str, enum.Enum):
     CASE_STUDY = "CASE_STUDY"
 
 
-class Content(Base):
+class Content(Base, TimestampMixin):
     __tablename__ = "content"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[dict] = mapped_column(JSONB, nullable=False)
@@ -39,8 +37,3 @@ class Content(Base):
     )
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("authors.id"), nullable=True)
     author_rel: Mapped["Author"] = relationship("Author", back_populates="contents")
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )

@@ -115,7 +115,9 @@ async def create_content(content_data: ContentCreate, db: AsyncSession = Depends
     await db.commit()
 
     created = await db.execute(
-        select(Content).options(selectinload(Content.categories)).where(Content.id == content.id)
+        select(Content)
+        .options(selectinload(Content.categories), selectinload(Content.author_rel))
+        .where(Content.id == content.id)
     )
     return created.scalar_one()
 

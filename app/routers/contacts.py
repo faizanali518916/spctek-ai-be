@@ -1,16 +1,21 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.contact import Contact
 from app.schemas.contact import ContactCreate, ContactRead, ContactUpdate
+from app.services.email import send_form_submission_email, send_contact_thank_you_email
 
 router = APIRouter(prefix="/contacts", tags=["Contacts"])
 
 
 @router.post("", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
-async def create_contact(contact_data: ContactCreate, db: AsyncSession = Depends(get_db)):
+async def create_contact(
+    contact_data: ContactCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     if not contact_data.email and not contact_data.phone:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -21,6 +26,28 @@ async def create_contact(contact_data: ContactCreate, db: AsyncSession = Depends
     db.add(contact)
     await db.commit()
     await db.refresh(contact)
+
+    # Send email in background if email is provided
+    if contact_data.email:
+        if contact_data.source in ["process_diagnostic", "ai_deployment_roadmap", "ai_playbook"]:
+            # Send form report email
+            background_tasks.add_task(
+                send_form_submission_email,
+                recipient_email=contact_data.email,
+                recipient_name=contact_data.name or "there",
+                source=contact_data.source,
+                journey_data=contact_data.journey or {},
+            )
+        elif contact_data.source == "website":
+            # Send thank you email for contact form
+            background_tasks.add_task(
+                send_contact_thank_you_email,
+                recipient_email=contact_data.email,
+                recipient_name=contact_data.name or "there",
+                company=contact_data.company or "",
+                message=contact_data.message or "",
+            )
+
     return contact
 
 

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process Health Scorecard</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family: &quot;Segoe UI&quot;, Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f5f5;
+    "
+  >
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff">
+      <!-- Header -->
+      <div
+        style="
+          background: linear-gradient(135deg, #606bfa 0%, #4a52e5 100%);
+          padding: 40px 30px;
+          text-align: center;
+        "
+      >
+        <h1
+          style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold"
+        >
+          Process Health Scorecard
+        </h1>
+        <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 16px">
+          Personalized Automation Analysis
+        </p>
+      </div>
+
+      <!-- Score Section -->
+      <div
+        style="
+          padding: 40px 30px;
+          text-align: center;
+          border-bottom: 1px solid #e5e7eb;
+        "
+      >
+        <div
+          style="
+            display: inline-block;
+            background-color: #f8f9ff;
+            border: 2px solid #606bfa;
+            border-radius: 16px;
+            padding: 30px 40px;
+          "
+        >
+          <div
+            style="
+              font-size: 64px;
+              font-weight: bold;
+              color: #606bfa;
+              line-height: 1;
+            "
+          >
+            {{ score }}
+          </div>
+          <div
+            style="
+              font-size: 14px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-top: 5px;
+            "
+          >
+            Health Score
+          </div>
+        </div>
+        <div style="margin-top: 20px">
+          <span
+            style="
+              display: inline-block;
+              background-color: #606bfa;
+              color: white;
+              padding: 8px 20px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 600;
+            "
+            >{{ category }}</span
+          >
+        </div>
+      </div>
+
+      <!-- Business Context -->
+      <div style="padding: 30px; border-bottom: 1px solid #e5e7eb">
+        <h2
+          style="
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+          "
+        >
+          Business Context
+        </h2>
+        <table style="width: 100%; border-collapse: collapse">
+          <tr>
+            <td
+              style="
+                padding: 12px 0;
+                color: #6b7280;
+                font-size: 14px;
+                width: 40%;
+              "
+            >
+              Primary Motivation
+            </td>
+            <td
+              style="
+                padding: 12px 0;
+                color: #1f2937;
+                font-size: 14px;
+                font-weight: 600;
+              "
+            >
+              {{ motive }}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
+              Team Size
+            </td>
+            <td
+              style="
+                padding: 12px 0;
+                color: #1f2937;
+                font-size: 14px;
+                font-weight: 600;
+              "
+            >
+              {{ teamSize }}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
+              Industry
+            </td>
+            <td
+              style="
+                padding: 12px 0;
+                color: #1f2937;
+                font-size: 14px;
+                font-weight: 600;
+              "
+            >
+              {{ industry }}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
+              SOP Documentation
+            </td>
+            <td
+              style="
+                padding: 12px 0;
+                color: #1f2937;
+                font-size: 14px;
+                font-weight: 600;
+              "
+            >
+              {{ sopLocation }}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
+              Tool Integration
+            </td>
+            <td
+              style="
+                padding: 12px 0;
+                color: #1f2937;
+                font-size: 14px;
+                font-weight: 600;
+              "
+            >
+              {{ toolIntegration }}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Challenges Section -->
+      <div style="padding: 30px; border-bottom: 1px solid #e5e7eb">
+        <h2
+          style="
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+          "
+        >
+          Top Hidden Challenges Detected
+        </h2>
+        {% for pointer in pointers %}
+        <div
+          style="
+            background-color: #f9fafb;
+            border-left: 4px solid #606bfa;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+          "
+        >
+          <h3
+            style="
+              color: #606bfa;
+              margin: 0 0 10px 0;
+              font-size: 16px;
+              font-weight: bold;
+            "
+          >
+            {{ loop.index }}. {{ pointer.title }}
+          </h3>
+          <p
+            style="
+              color: #4b5563;
+              margin: 0 0 10px 0;
+              font-size: 14px;
+              line-height: 1.6;
+            "
+          >
+            {{ pointer.body }}
+          </p>
+          <p
+            style="color: #606bfa; margin: 0; font-size: 13px; font-weight: 600"
+          >
+            Hidden Cost: {{ pointer.cost }}
+          </p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- CTA Section -->
+      <div
+        style="
+          padding: 40px 30px;
+          text-align: center;
+          background-color: #f8f9ff;
+        "
+      >
+        <h2
+          style="
+            color: #1f2937;
+            margin: 0 0 15px 0;
+            font-size: 20px;
+            font-weight: bold;
+          "
+        >
+          Ready to Automate?
+        </h2>
+        <p
+          style="
+            color: #6b7280;
+            margin: 0 0 25px 0;
+            font-size: 15px;
+            line-height: 1.6;
+          "
+        >
+          Schedule a complimentary strategy session to discuss implementation
+          roadmap and ROI projections.
+        </p>
+        <a
+          href="https://calendly.com/contact-spctek/30min"
+          style="
+            display: inline-block;
+            background-color: #606bfa;
+            color: white;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+          "
+          >Book Your Free Strategy Call</a
+        >
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 30px; text-align: center; background-color: #1f2937">
+        <p style="color: #9ca3af; margin: 0 0 10px 0; font-size: 14px">
+          &copy; 2026 SPCTEK AI. All rights reserved.
+        </p>
+        <p style="color: #6b7280; margin: 0; font-size: 12px">
+          Generated by AI | info@spctek.ai
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -13,10 +13,31 @@ class ContentBase(BaseModel):
     slug: str
     summary: str | None = None
     thumbnail_url: str
-    content: dict | list = Field(..., description="Structured JSON content from the editor")
+    content: str = Field(..., description="HTML content from the rich text editor")
+    meta_tags: dict | None = None
     author_id: uuid.UUID | None = None
     type: ContentType = ContentType.BLOG
     is_published: bool = False
+    kpis: list[dict] | None = None
+
+
+class ContentListRead(BaseModel):
+    id: uuid.UUID
+    title: str
+    slug: str
+    summary: str | None = None
+    thumbnail_url: str
+    meta_tags: dict | None = None
+    author_id: uuid.UUID | None = None
+    type: ContentType = ContentType.BLOG
+    is_published: bool = False
+    kpis: list[dict] | None = None
+    author: AuthorRead | None = Field(None, alias="author_rel", serialization_alias="author")
+    categories: list[CategoryRead] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContentInput(ContentBase):

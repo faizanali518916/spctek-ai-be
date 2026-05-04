@@ -21,7 +21,9 @@ class Content(Base, TimestampMixin):
 
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
+    meta_tags: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    kpis: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
 
     summary: Mapped[str | None] = mapped_column(String(500), nullable=False)
     thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=False)

@@ -1,8 +1,9 @@
+import re as _re
 import uuid
 import logging
 from enum import Enum
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -10,7 +11,7 @@ from app.database import get_db
 from app.models.author import Author
 from app.models.category import Category
 from app.models.content import Content, ContentType
-from app.schemas.content import ContentCreate, ContentRead, ContentUpdate
+from app.schemas.content import ContentCreate, ContentListRead, ContentRead, ContentUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -80,18 +81,14 @@ def extract_all_content_images(content: Content, settings) -> list[str]:
         if k:
             keys.append(k)
 
-    # Extract images from content
-    if content.content and isinstance(content.content, dict):
+    # Extract images from content HTML
+    if content.content and isinstance(content.content, str):
         try:
-            blocks = content.content.get("blocks", [])
-            for block in blocks:
-                if block.get("type") == "image":
-                    file_data = block.get("data", {}).get("file", {})
-                    url = file_data.get("url")
-                    if url:
-                        k = extract_r2_key(url, settings)
-                        if k:
-                            keys.append(k)
+            img_urls = _re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', content.content)
+            for url in img_urls:
+                k = extract_r2_key(url, settings)
+                if k:
+                    keys.append(k)
         except Exception as e:
             logger.warning(f"Error parsing content body for images: {e}")
 
@@ -122,7 +119,7 @@ async def create_content(content_data: ContentCreate, db: AsyncSession = Depends
     return created.scalar_one()
 
 
-@router.get("", response_model=list[ContentRead])
+@router.get("", response_model=list[ContentListRead])
 async def list_content(
     content_type: ContentType = Query(..., alias="type"),
     author_id: uuid.UUID | None = Query(None, alias="author"),
@@ -134,7 +131,24 @@ async def list_content(
 ):
     query = (
         select(Content)
-        .options(selectinload(Content.categories), selectinload(Content.author_rel))
+        .options(
+            load_only(
+                Content.id,
+                Content.title,
+                Content.slug,
+                Content.summary,
+                Content.thumbnail_url,
+                Content.meta_tags,
+                Content.author_id,
+                Content.type,
+                Content.is_published,
+                Content.kpis,
+                Content.created_at,
+                Content.updated_at,
+            ),
+            selectinload(Content.categories),
+            selectinload(Content.author_rel),
+        )
         .where(Content.type == content_type)
     )
 

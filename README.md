@@ -300,7 +300,6 @@ pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.
 Commands to deploy new update:
 
 ```bash
-cd spctekai-backend/
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt

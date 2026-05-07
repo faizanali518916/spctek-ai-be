@@ -3,6 +3,8 @@ import logging
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from jinja2 import Environment, FileSystemLoader
 from app.config import get_settings
 
@@ -11,6 +13,16 @@ logger = logging.getLogger(__name__)
 # Set up Jinja2 environment for templates
 template_dir = Path(__file__).parent.parent / "templates"
 env = Environment(loader=FileSystemLoader(str(template_dir)))
+
+# Playbook focus to PDF mapping
+PLAYBOOK_PDF_MAPPING = {
+    "Fragmented Data": "Data_Management_Playbook.pdf",
+    "AI Adoption & Use": "AI_Adoption_Playbook.pdf",
+    "Product Launch": "Product_Launch_Playbook.pdf",
+    "Inventory Management & Forecast": "Inventory_Management_Playbook.pdf",
+    "Client Onboarding": "Client_Onboarding_Playbook.pdf",
+    "Scope Creep": "Scope_Creep_Playbook.pdf",
+}
 
 
 def render_template(template_name: str, context: dict) -> str:
@@ -102,8 +114,22 @@ def send_form_submission_email(
             logger.error("Failed to render HTML template")
             return False
 
-        # Create email message
-        msg = MIMEMultipart("alternative")
+        # Determine if we need to attach a playbook PDF
+        playbook_pdf_path = None
+        if source == "ai_playbook":
+            playbook_focus = journey_data.get("playbookFocus")
+            if playbook_focus and playbook_focus in PLAYBOOK_PDF_MAPPING:
+                pdf_filename = PLAYBOOK_PDF_MAPPING[playbook_focus]
+                playbook_pdf_path = Path(__file__).parent.parent.parent / "assets" / "playbooks" / pdf_filename
+                if not playbook_pdf_path.exists():
+                    logger.warning(f"Playbook PDF not found: {playbook_pdf_path}")
+                    playbook_pdf_path = None
+
+        # Create email message - use mixed if we have an attachment, otherwise alternative
+        if playbook_pdf_path:
+            msg = MIMEMultipart("mixed")
+        else:
+            msg = MIMEMultipart("alternative")
         msg["To"] = recipient_email
         msg["From"] = f"SPCTEK AI <{settings.SMTP_USER}>"
         msg["Subject"] = subject
@@ -111,8 +137,27 @@ def send_form_submission_email(
         # Plain-text fallback
         text_content = f"Dear {recipient_name},\n\nThank you for using SPCTEK AI. Your report is ready. Please view this email in a client that supports HTML to see your full report."
 
-        msg.attach(MIMEText(text_content, "plain"))
-        msg.attach(MIMEText(html_content, "html"))
+        if playbook_pdf_path:
+            # Create body container for mixed message
+            msg_body = MIMEMultipart("alternative")
+            msg_body.attach(MIMEText(text_content, "plain"))
+            msg_body.attach(MIMEText(html_content, "html"))
+            msg.attach(msg_body)
+
+            # Attach the playbook PDF
+            with open(playbook_pdf_path, "rb") as attachment:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(attachment.read())
+
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename={PLAYBOOK_PDF_MAPPING[journey_data.get('playbookFocus')]}",
+            )
+            msg.attach(part)
+        else:
+            msg.attach(MIMEText(text_content, "plain"))
+            msg.attach(MIMEText(html_content, "html"))
 
         # Send email
         logger.info(f"Sending form submission email to {recipient_email}")

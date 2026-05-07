@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Automation Playbook</title>
+    <title>Your Custom AI Playbook</title>
   </head>
   <body
     style="
@@ -18,131 +18,111 @@
       <div
         style="
           background: linear-gradient(135deg, #606bfa 0%, #4a52e5 100%);
-          padding: 40px 30px;
+          padding: 50px 30px;
           text-align: center;
         "
       >
         <h1
-          style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold"
+          style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold"
         >
-          AI Automation Playbook
+          Your Custom Playbook is Ready
         </h1>
-        <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 16px">
-          Strategic Roadmap for Business Automation
+        <p style="color: #e0e7ff; margin: 15px 0 0 0; font-size: 18px">
+          Designed specifically for your business
         </p>
       </div>
 
-      <!-- Recommendation Section -->
-      <div
-        style="
-          padding: 40px 30px;
-          text-align: center;
-          border-bottom: 1px solid #e5e7eb;
-        "
-      >
-        <div
-          style="
-            display: inline-block;
-            background-color: #f8f9ff;
-            border: 2px solid #606bfa;
-            border-radius: 16px;
-            padding: 30px 40px;
-          "
-        >
-          <div
-            style="
-              font-size: 28px;
-              font-weight: bold;
-              color: #606bfa;
-              line-height: 1.2;
-            "
-          >
-            {{ recommendation_title }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Business Profile -->
-      <div style="padding: 30px; border-bottom: 1px solid #e5e7eb">
+      <!-- Analysis Summary -->
+      <div style="padding: 40px 30px; border-bottom: 1px solid #e5e7eb">
         <h2
           style="
             color: #1f2937;
             margin: 0 0 20px 0;
-            font-size: 18px;
+            font-size: 22px;
             font-weight: bold;
           "
         >
-          Business Profile
+          We've Analyzed Your Workflow
         </h2>
-        <table style="width: 100%; border-collapse: collapse">
-          <tr>
-            <td
-              style="
-                padding: 12px 0;
-                color: #6b7280;
-                font-size: 14px;
-                width: 40%;
-              "
-            >
-              Business Type
-            </td>
-            <td
-              style="
-                padding: 12px 0;
-                color: #1f2937;
-                font-size: 14px;
-                font-weight: 600;
-              "
-            >
-              {{ business_type }}
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
-              Revenue Range
-            </td>
-            <td
-              style="
-                padding: 12px 0;
-                color: #1f2937;
-                font-size: 14px;
-                font-weight: 600;
-              "
-            >
-              {{ revenue_range }}
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
-              Focus Area
-            </td>
-            <td
-              style="
-                padding: 12px 0;
-                color: #1f2937;
-                font-size: 14px;
-                font-weight: 600;
-              "
-            >
-              {{ playbook_focus }}
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 12px 0; color: #6b7280; font-size: 14px">
-              Urgency Level
-            </td>
-            <td
-              style="
-                padding: 12px 0;
-                color: #1f2937;
-                font-size: 14px;
-                font-weight: 600;
-              "
-            >
-              {{ urgency }}
-            </td>
-          </tr>
-        </table>
+        <p
+          style="
+            color: #4b5563;
+            margin: 0 0 20px 0;
+            font-size: 15px;
+            line-height: 1.7;
+          "
+        >
+          Based on your business profile and operational challenges, we've
+          designed a comprehensive playbook tailored to your specific needs.
+          This isn't a generic guide—it's a strategic roadmap built around your
+          focus area:
+          <strong>{{ playbook_focus }}</strong>
+        </p>
+
+        <!-- Business Profile Summary -->
+        <div
+          style="
+            background-color: #f8f9ff;
+            border-left: 4px solid #606bfa;
+            padding: 20px;
+            border-radius: 8px;
+          "
+        >
+          <table style="width: 100%; border-collapse: collapse">
+            <tr>
+              <td
+                style="
+                  padding: 10px 0;
+                  color: #6b7280;
+                  font-size: 14px;
+                  width: 40%;
+                "
+              >
+                Business Type
+              </td>
+              <td
+                style="
+                  padding: 10px 0;
+                  color: #1f2937;
+                  font-size: 14px;
+                  font-weight: 600;
+                "
+              >
+                {{ business_type }}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px">
+                Revenue Range
+              </td>
+              <td
+                style="
+                  padding: 10px 0;
+                  color: #1f2937;
+                  font-size: 14px;
+                  font-weight: 600;
+                "
+              >
+                {{ revenue_range }}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px">
+                Focus Area
+              </td>
+              <td
+                style="
+                  padding: 10px 0;
+                  color: #1f2937;
+                  font-size: 14px;
+                  font-weight: 600;
+                "
+              >
+                {{ playbook_focus }}
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
 
       <!-- Strategic Recommendation -->
@@ -155,7 +135,7 @@
             font-weight: bold;
           "
         >
-          Strategic Recommendation
+          Your Strategic Recommendation
         </h2>
         <p style="color: #4b5563; margin: 0; font-size: 14px; line-height: 1.6">
           {{ recommendation_message }}
@@ -180,7 +160,7 @@
               letter-spacing: 0.5px;
             "
           >
-            Operational Challenge
+            Key Challenge YOU Identified
           </h3>
           <p
             style="color: #78350f; margin: 0; font-size: 14px; line-height: 1.6"
@@ -189,6 +169,105 @@
           </p>
         </div>
         {% endif %}
+      </div>
+
+      <!-- Playbook Attachment Section -->
+      <div style="padding: 30px; border-bottom: 1px solid #e5e7eb">
+        <div
+          style="
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+          "
+        >
+          <div
+            style="
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 60px;
+              height: 60px;
+              background-color: rgba(255, 255, 255, 0.25);
+              border-radius: 50%;
+              margin-bottom: 20px;
+            "
+          >
+            <span style="font-size: 30px; color: white; font-weight: bold"
+              >📄</span
+            >
+          </div>
+          <h2
+            style="
+              color: #ffffff;
+              margin: 0 0 12px 0;
+              font-size: 22px;
+              font-weight: bold;
+            "
+          >
+            Your Playbook is Attached
+          </h2>
+          <p
+            style="
+              color: #d1fae5;
+              margin: 0 0 15px 0;
+              font-size: 15px;
+              line-height: 1.5;
+            "
+          >
+            We've crafted the <strong>{{ playbook_focus }}</strong> playbook
+            specifically for your business. Download it now to start
+            implementing.
+          </p>
+          <div
+            style="
+              background-color: rgba(255, 255, 255, 0.2);
+              padding: 12px 20px;
+              border-radius: 8px;
+              display: inline-block;
+            "
+          >
+            <p
+              style="
+                color: #ffffff;
+                margin: 0;
+                font-size: 13px;
+                font-weight: 600;
+              "
+            >
+              ✓ Ready for immediate implementation
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- What's Inside -->
+      <div style="padding: 30px; border-bottom: 1px solid #e5e7eb">
+        <h2
+          style="
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+          "
+        >
+          What's Inside Your Playbook
+        </h2>
+        <ul
+          style="
+            margin: 0;
+            padding-left: 20px;
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 2;
+          "
+        >
+          <li>Step-by-step implementation roadmap</li>
+          <li>Tools and technology recommendations</li>
+          <li>Timeline and milestone tracking</li>
+          <li>ROI projections and success metrics</li>
+          <li>Best practices and common pitfalls to avoid</li>
+        </ul>
       </div>
 
       <!-- CTA Section -->
@@ -207,7 +286,7 @@
             font-weight: bold;
           "
         >
-          Ready to Execute?
+          Need Help Implementing?
         </h2>
         <p
           style="
@@ -217,7 +296,8 @@
             line-height: 1.6;
           "
         >
-          Schedule a strategy session to build your implementation timeline.
+          Schedule a strategy session with our team to accelerate your
+          implementation.
         </p>
         <a
           href="https://calendly.com/contact-spctek/30min"

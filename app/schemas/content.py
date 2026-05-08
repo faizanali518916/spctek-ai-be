@@ -19,6 +19,7 @@ class ContentBase(BaseModel):
     type: ContentType = ContentType.BLOG
     is_published: bool = False
     kpis: list[dict] | None = None
+    created_at: datetime | None = None
 
 
 class ContentListRead(BaseModel):

@@ -1,10 +1,11 @@
+import os
+import stat
 import subprocess
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, status
 from app.config import get_settings
 
 settings = get_settings()
-
 router = APIRouter(prefix="/deploy", tags=["Deployment"])
 
 
@@ -15,10 +16,10 @@ class DeployRequest(BaseModel):
 @router.post("")
 async def deploy(request: DeployRequest):
     """
-    Deployment webhook endpoint.
-    Requires correct DEPLOY_PASSWORD to execute deployment commands.
+    Triggers the update.sh script and returns immediately.
+    Ensures the script has executable permissions before running.
     """
-    # Get the deployment password from environment variable
+    # 1. Verify Authentication
     deploy_password = settings.DEPLOY_PASSWORD
 
     if not deploy_password:
@@ -27,79 +28,48 @@ async def deploy(request: DeployRequest):
             detail="DEPLOY_PASSWORD environment variable not set",
         )
 
-    # Verify the password
     if request.password != deploy_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid deployment password",
         )
 
-    # Define deployment commands
-    commands = ["git pull origin main", "venv/bin/pip install -r requirements.txt"]
+    project_dir = "/home/spc/Desktop/spctekai-backend"
+    script_path = os.path.join(project_dir, "update.sh")
 
-    # Set the working directory
-    cwd = "/home/spc/Desktop/spctekai-backend"
-
-    results = []
-
-    for command in commands:
-        try:
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                text=True,
-                shell=True,
-                timeout=300,
-                capture_output=True,
+    # 2. Automatically make update.sh executable (chmod +x)
+    try:
+        if os.path.exists(script_path):
+            # Get current file permissions
+            st = os.stat(script_path)
+            # Add user, group, and other executable permissions (equivalent to +x)
+            os.chmod(script_path, st.st_mode | stat.S_IEXEC)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"update.sh not found at {script_path}",
             )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to set executable permissions on update.sh: {str(e)}",
+        )
 
-            results.append(
-                {
-                    "command": command,
-                    "returncode": result.returncode,
-                    "success": result.returncode == 0,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                }
-            )
+    # 3. Trigger the script in the background (Non-blocking)
+    try:
+        subprocess.Popen(
+            ["bash", "./update.sh"],
+            cwd=project_dir
+        )
+        
+        # 4. Return immediate success response before the server restarts
+        return {
+            "success": True,
+            "message": "Deployment initiated successfully. Server is pulling changes and restarting."
+        }
 
-            # If any command fails, return early with failure status
-            if result.returncode != 0:
-                return {
-                    "success": False,
-                    "message": f"Deployment failed at command: {command}",
-                    "results": results,
-                }
-
-        except subprocess.TimeoutExpired:
-            results.append(
-                {
-                    "command": command,
-                    "success": False,
-                    "error": "Command timed out (exceeded 5 minutes)",
-                }
-            )
-            return {
-                "success": False,
-                "message": f"Deployment failed - command timed out: {command}",
-                "results": results,
-            }
-        except Exception as e:
-            results.append(
-                {
-                    "command": command,
-                    "success": False,
-                    "error": str(e),
-                }
-            )
-            return {
-                "success": False,
-                "message": f"Deployment failed with error: {str(e)}",
-                "results": results,
-            }
-
-    return {
-        "success": True,
-        "message": "Deployment completed successfully",
-        "results": results,
-    }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to initiate deployment script: {str(e)}"
+        )

@@ -1,4 +1,7 @@
 .env
 venv/
-scripts/
 __pycache__/
+
+# Project specific files
+creds.txt
+scripts/

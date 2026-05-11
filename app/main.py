@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    version="1.0.5.8",
+    version="1.0.5.11",
     title="SPCTEK AI API",
     description="Backend API for SPCTEK AI platform",
     lifespan=lifespan,

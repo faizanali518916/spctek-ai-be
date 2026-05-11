@@ -17,9 +17,9 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(user_id: str, expires_delta: timedelta | None = None) -> str:
-    """Create a JWT access token."""
+    """Create a JWT access token. Defaults to 12 hours expiry."""
     if expires_delta is None:
-        expires_delta = timedelta(days=7)
+        expires_delta = timedelta(hours=12)
 
     expire = datetime.utcnow() + expires_delta
     payload = {

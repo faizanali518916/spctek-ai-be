@@ -1,4 +1,6 @@
+import os
 import logging
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -11,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,7 +22,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-description = "Backend API for SPCTEK AI platform.\n\n" f"**🚀 Last Deployed At:** `{settings.DEPLOYMENT_UPDATED_AT}`"
+updated_at = os.environ.get("DEPLOYMENT_UPDATED_AT", "Unknown")
+description = f"Backend API for SPCTEK AI platform.\n\n**🚀 Last Deployed At:** `{updated_at}`"
 
 app = FastAPI(
     version="1.0.0",

@@ -10,10 +10,7 @@ load_dotenv(BASE_DIR / ".env")
 class Settings(BaseSettings):
     SECRET_KEY: str
     DATABASE_URL: str
-
-    # Deployment Settings
     DEPLOY_PASSWORD: str
-    DEPLOYMENT_UPDATED_AT: str
 
     # API Keys
     GOOGLE_API_KEY: str

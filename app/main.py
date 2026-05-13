@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from app.database import init_db
 from app.config import get_settings
 from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck
 
@@ -13,13 +14,16 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_db()
     yield
 
 
+description = "Backend API for SPCTEK AI platform.\n\n" f"**🚀 Last Deployed At:** `{settings.DEPLOYMENT_UPDATED_AT}`"
+
 app = FastAPI(
-    version="1.0.5.11",
+    version="1.0.0",
     title="SPCTEK AI API",
-    description="Backend API for SPCTEK AI platform",
+    description=description,
     lifespan=lifespan,
 )
 

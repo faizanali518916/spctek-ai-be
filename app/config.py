@@ -10,9 +10,16 @@ load_dotenv(BASE_DIR / ".env")
 class Settings(BaseSettings):
     SECRET_KEY: str
     DATABASE_URL: str
+
+    # Deployment Settings
+    DEPLOY_PASSWORD: str
+    DEPLOYMENT_UPDATED_AT: str
+
+    # API Keys
     GOOGLE_API_KEY: str
     OPENROUTER_API_KEY: str
-    DEPLOY_PASSWORD: str
+
+    # R2 Storage Settings
     R2_ACCOUNT_ID: str
     R2_BUCKET_NAME: str
     R2_TOKEN_VALUE: str

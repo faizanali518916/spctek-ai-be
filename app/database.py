@@ -1,13 +1,17 @@
+import logging
 import ssl
 import uuid
 from datetime import datetime
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, text
+from sqlalchemy.exc import DisconnectionError, OperationalError
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.config import get_settings
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 ssl_context = None
 if "localhost" not in settings.DATABASE_URL and "127.0.0.1" not in settings.DATABASE_URL:
@@ -32,6 +36,25 @@ engine = create_async_engine(
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
+RETRYABLE_DB_ERRORS = (OperationalError, DisconnectionError, TimeoutError, OSError)
+
+
+@retry(
+    retry=retry_if_exception_type(RETRYABLE_DB_ERRORS),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    stop=stop_after_attempt(5),
+    reraise=True,
+    after=lambda retry_state: logger.warning(
+        "Database connection attempt %s failed: %s",
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),
+    ),
+)
+async def wait_for_database() -> None:
+    async with engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -49,6 +72,7 @@ class TimestampMixin:
 
 
 async def get_db():
+    await wait_for_database()
     async with async_session() as session:
         try:
             yield session
@@ -57,5 +81,6 @@ async def get_db():
 
 
 async def init_db():
+    await wait_for_database()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

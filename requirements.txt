@@ -7,6 +7,7 @@ asyncpg>=0.29.0
 alembic>=1.13.0
 psycopg[binary]>=3.1.0
 sqlalchemy[asyncio]>=2.0.35
+tenacity>=9.0.0
 
 # Validation & Settings
 python-dotenv>=1.0.1

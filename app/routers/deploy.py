@@ -57,19 +57,15 @@ async def deploy(request: DeployRequest):
 
     # 3. Trigger the script in the background (Non-blocking)
     try:
-        subprocess.Popen(
-            ["bash", "./update.sh"],
-            cwd=project_dir
-        )
-        
+        subprocess.Popen(["bash", "./update.sh"], cwd=project_dir)
+
         # 4. Return immediate success response before the server restarts
         return {
             "success": True,
-            "message": "Deployment initiated successfully. Server is pulling changes and restarting."
+            "message": "Deployment initiated successfully. Server is pulling changes and restarting.",
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to initiate deployment script: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to initiate deployment script: {str(e)}"
         )

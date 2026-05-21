@@ -4,5 +4,6 @@ from app.models.category import Category
 from app.models.user import User
 from app.models.reinstatement_log import ReinstatementLog
 from app.models.metadeck import Metadeck
+from app.models.popup import Popup
 
-__all__ = ["Contact", "Content", "Category", "User", "ReinstatementLog", "Metadeck"]
+__all__ = ["Contact", "Content", "Category", "User", "ReinstatementLog", "Metadeck", "Popup"]

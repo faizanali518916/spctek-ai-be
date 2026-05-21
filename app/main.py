@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.database import init_db
 from app.config import get_settings
-from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck
+from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck, popups
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,7 @@ app.include_router(reinstatement.router)
 app.include_router(deploy.router)
 app.include_router(r2.router)
 app.include_router(metadeck.router)
+app.include_router(popups.router)
 
 
 @app.get("/health")

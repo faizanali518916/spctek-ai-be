@@ -5,7 +5,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.database import init_db
 from app.config import get_settings
 from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck, popups
 
@@ -18,7 +17,6 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
     yield
 
 

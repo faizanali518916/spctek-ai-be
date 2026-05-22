@@ -59,7 +59,7 @@ class ReportRequest(BaseModel):
 class ReportResponse(BaseModel):
     """Response body containing the generated report."""
 
-    report: str = Field(..., description="The generated markdown report.")
+    report: dict = Field(..., description="The generated JSON report.")
 
 
 class ReinstatementLogCreateRequest(BaseModel):

@@ -294,7 +294,7 @@ For reference, the PM2 commands to start the deployment are:
 cd spctekai-backend/
 source venv/bin/activate
 pip install -r requirements.txt
-pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001 --timeout 90" --name spctekai-backend
+pm2 start "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8001 --timeout 60" --name spctekai-backend
 ```
 
 Commands to deploy new update:

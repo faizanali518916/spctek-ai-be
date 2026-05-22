@@ -1,5 +1,7 @@
 import logging
-import tempfile
+from time import perf_counter
+from datetime import datetime
+from pathlib import Path
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +22,7 @@ from app.models.reinstatement_log import ReinstatementLog
 from app.models.contact import Contact
 
 logger = logging.getLogger(__name__)
+OUTPUTS_DIR = Path(__file__).resolve().parent.parent / "services" / "outputs"
 
 router = APIRouter(prefix="/reinstatement", tags=["Reinstatement"])
 
@@ -33,29 +36,37 @@ async def options_generate():
 
 
 async def send_report_email_background(
-    report_text: str,
+    report_data: dict,
     recipient_name: str,
     recipient_email: str,
 ) -> None:
     """Background task to convert report to PDF and send via email."""
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            pdf_file_path = tmp_file.name
+        total_started = perf_counter()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+        pdf_file_path = OUTPUTS_DIR / f"report_{timestamp}.pdf"
 
-        logger.info(f"Converting report to PDF for {recipient_email}")
-        write_formatted_report(report_text, pdf_file_path)
+        pdf_started = perf_counter()
+        logger.info("Converting report to PDF for %s", recipient_email)
+        write_formatted_report(report_data, str(pdf_file_path))
+        logger.info("Background PDF render completed in %.2fs", perf_counter() - pdf_started)
 
-        logger.info(f"Sending PDF email to {recipient_email}")
+        email_started = perf_counter()
+        logger.info("Sending PDF email to %s", recipient_email)
         success = send_reinstatement_report_email(
             recipient_email=recipient_email,
             recipient_name=recipient_name,
             pdf_file_path=pdf_file_path,
         )
+        logger.info("Email send step completed in %.2fs", perf_counter() - email_started)
 
         if success:
             logger.info(f"Report successfully sent to {recipient_email}")
         else:
             logger.error(f"Failed to send report to {recipient_email}")
+
+        logger.info("Background reinstatement email task finished in %.2fs", perf_counter() - total_started)
     except Exception as e:
         logger.error(f"Error in background email task: {str(e)}", exc_info=True)
 
@@ -74,6 +85,7 @@ async def create_report(
     as a PDF via email to the provided address.
     """
     try:
+        started_at = perf_counter()
         logger.info(
             "Report request received: business_model=%s, recipient_email=%s",
             payload.business_model,
@@ -85,6 +97,7 @@ async def create_report(
             performance_notification=payload.performance_notification,
             suspension_date=payload.suspension_date,
             business_model=payload.business_model,
+            fulfillment_channel=payload.fulfillment_channel,
             appeals_made=payload.appeals_made,
             seller_belief=payload.seller_belief,
             available_documents=payload.available_documents,
@@ -95,12 +108,16 @@ async def create_report(
         # Add background task to send email
         background_tasks.add_task(
             send_report_email_background,
-            report_text=report,
+            report_data=report,
             recipient_name=payload.recipient_name,
             recipient_email=payload.recipient_email,
         )
 
         logger.info("Report endpoint returning response")
+        logger.warning(
+            "TIMING | /reinstatement/generate request completed in %.2fs before background task dispatch",
+            perf_counter() - started_at,
+        )
         return ReportResponse(report=report)
 
     except ValueError as ve:
@@ -269,6 +286,7 @@ async def generate_report_from_log(
             performance_notification=log.performance_notification,
             suspension_date=log.suspension_date,
             business_model=log.business_model,
+            fulfillment_channel=log.fulfillment_channel,
             appeals_made=log.appeals_made,
             seller_belief=log.seller_belief,
             available_documents=log.available_documents,
@@ -279,7 +297,7 @@ async def generate_report_from_log(
         # Add background task to send email
         background_tasks.add_task(
             send_report_email_background,
-            report_text=report,
+            report_data=report,
             recipient_name=contact.name or "Customer",
             recipient_email=contact.email,
         )

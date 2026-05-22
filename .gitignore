@@ -5,3 +5,5 @@ __pycache__/
 # Project specific files
 creds.txt
 scripts/
+
+app/services/outputs

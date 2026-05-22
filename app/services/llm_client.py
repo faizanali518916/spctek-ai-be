@@ -1,43 +1,89 @@
+import json
 import logging
-from openai import OpenAI
+import time
+from typing import Any, Optional
+
+from google import genai
+from google.genai import types
+
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free"
+GEMINI_MODEL = "gemini-2.5-flash"
+MAX_RETRIES = 2
+RETRY_DELAY_SECONDS = 2.0
 
 
-def _get_client() -> OpenAI:
-    """Create an OpenAI-compatible client for OpenRouter."""
+def _get_client() -> genai.Client:
     settings = get_settings()
-
-    api_key = settings.OPENROUTER_API_KEY
+    api_key = settings.GOOGLE_API_KEY
     if not api_key:
-        raise ValueError("OPENROUTER_API_KEY is not configured.")
+        raise ValueError("GOOGLE_API_KEY is not configured.")
+    return genai.Client(api_key=api_key)
 
-    return OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+
+def _extract_text(response: Any) -> str:
+    text = getattr(response, "text", None)
+    if text:
+        return text
+
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        for part in parts:
+            part_text = getattr(part, "text", None)
+            if part_text:
+                return part_text
+
+    raise RuntimeError("Gemini returned no text content")
 
 
-def generate(prompt: str) -> str:
-    """Generate content using the best free model available."""
-    target_model = "openrouter/free"
+def generate(
+    prompt: Optional[str] = None,
+    *,
+    system: Optional[str] = None,
+    user: Optional[str] = None,
+) -> dict[str, Any]:
+    """Request JSON from Gemini and return it as a parsed dict."""
     client = _get_client()
 
-    logger.info("Generating content via OpenRouter (Free Tier) with model: %s", target_model)
-    try:
-        response = client.chat.completions.create(
-            model=target_model,
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-        )
+    contents = user if user is not None else prompt
+    if not contents:
+        raise ValueError("generate() requires prompt or user content")
 
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("OpenRouter returned an empty response.")
+    config = types.GenerateContentConfig(
+        systemInstruction=system,
+        responseMimeType="application/json",
+        temperature=0.0,
+    )
 
-        return content
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=contents,
+                config=config,
+            )
+            text = _extract_text(response)
+            text = text.strip()
+            if text.startswith("```"):
+                text = text.strip("`")
+            return json.loads(text)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Gemini generation failed (attempt %s/%s, model=%s): %s",
+                attempt,
+                MAX_RETRIES,
+                GEMINI_MODEL,
+                exc,
+            )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY_SECONDS * attempt)
+                continue
+            break
 
-    except Exception as e:
-        logger.error("OpenRouter API error: %s", e)
-        raise RuntimeError(f"OpenRouter API error: {e}") from e
+    raise RuntimeError(f"Gemini generation failed after {MAX_RETRIES} attempts: {last_error}")

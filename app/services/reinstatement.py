@@ -1,35 +1,48 @@
+import os
+import json
 import logging
-import tempfile
+from time import perf_counter
+from datetime import datetime
+from pathlib import Path
+
 from app.services.llm_client import generate
 from app.services.formatter import write_formatted_report
 from app.services.instructions import SYSTEM_INSTRUCTIONS
 
 logger = logging.getLogger(__name__)
+OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
+
+
+def _log_duration(step: str, started_at: float) -> None:
+    logger.warning("TIMING | %s: %.2fs", step, perf_counter() - started_at)
 
 
 def build_user_prompt(
     performance_notification: str,
     suspension_date: str,
     business_model: str,
+    fulfillment_channel: str,
     appeals_made: int,
     seller_belief: str,
     available_documents: str,
 ) -> str:
     """Combine form fields into a single structured prompt."""
     return f"""
-**Performance Notification:**
+Performance Notification:
 {performance_notification}
 
-**Suspension Date:** {suspension_date}
+Suspension Date: {suspension_date}
 
-**Business Model:** {business_model}
+Business Model: {business_model}
 
-**Previous Appeals:** {appeals_made}
+Fulfillment Channel: {fulfillment_channel}
 
-**Seller's Belief on Suspension Cause:**
+Previous Appeals: {appeals_made}
+
+Seller's Belief on Suspension Cause:
 {seller_belief}
 
-**Available Documents:**
+Available Documents:
 {available_documents}
 """.strip()
 
@@ -38,56 +51,66 @@ def generate_report(
     performance_notification: str,
     suspension_date: str,
     business_model: str,
+    fulfillment_channel: str,
     appeals_made: int,
     seller_belief: str,
     available_documents: str,
-) -> str:
-    """Generate a reinstatement assessment report and send via email as PDF.
+) -> dict:
+    """Generate a reinstatement assessment report.
 
-    Sends the structured user input together with the system instructions
-    to the LLM model, converts to PDF, sends via email, and returns
-    the markdown report text for display.
-
-    Args:
-        performance_notification: Full text of the Amazon notification.
-        suspension_date: Date the account was suspended (ISO format).
-        business_model: Seller's business model.
-        appeals_made: Number of prior appeal attempts.
-        seller_belief: Seller's own explanation of the suspension.
-        available_documents: Comma-separated list of available docs.
-
-    Returns:
-        The generated markdown report.
+    Sends all structured seller input to the LLM and returns the parsed
+    JSON report. Also writes a PDF copy to a temp file.
     """
-    user_input = build_user_prompt(
+    total_started = perf_counter()
+
+    step_started = perf_counter()
+    user_prompt = build_user_prompt(
         performance_notification=performance_notification,
         suspension_date=suspension_date,
         business_model=business_model,
+        fulfillment_channel=fulfillment_channel,
         appeals_made=appeals_made,
         seller_belief=seller_belief,
         available_documents=available_documents,
     )
+    _log_duration("Prompt assembly", step_started)
 
-    prompt = f"""
-{SYSTEM_INSTRUCTIONS}
+    step_started = perf_counter()
+    response = generate(
+        system=SYSTEM_INSTRUCTIONS,
+        user=user_prompt,
+    )
+    _log_duration("Gemini generation", step_started)
 
-INPUT
-{user_input}
+    step_started = perf_counter()
+    if isinstance(response, dict):
+        report = response
+    else:
+        try:
+            report = json.loads(response)
+        except Exception as e:
+            logger.error("LLM returned invalid JSON or unexpected type", exc_info=True)
+            raise ValueError("Failed to parse LLM response as JSON") from e
 
-Respond strictly in the defined format.
-"""
+    _log_duration("Response parsing", step_started)
 
-    response = generate(prompt)
-    logger.info("Reinstatement report generated successfully")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    step_started = perf_counter()
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = OUTPUTS_DIR / f"report_{timestamp}.json"
+    with json_path.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+    logger.info("JSON report saved: %s", json_path)
+    _log_duration("JSON write", step_started)
 
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            pdf_file_path = tmp_file.name
-
-        logger.info(f"Converting report to PDF: {pdf_file_path}")
-        write_formatted_report(response, pdf_file_path)
-
+        step_started = perf_counter()
+        pdf_path = OUTPUTS_DIR / f"report_{timestamp}.pdf"
+        logger.info("Converting report to PDF: %s", pdf_path)
+        write_formatted_report(report, str(pdf_path))
+        _log_duration("PDF render", step_started)
     except Exception as e:
-        logger.error(f"Error converting report to PDF: {str(e)}", exc_info=True)
+        logger.error(f"Error converting report to PDF: {e}", exc_info=True)
 
-    return response
+    _log_duration("Total reinstatement generation", total_started)
+    return report

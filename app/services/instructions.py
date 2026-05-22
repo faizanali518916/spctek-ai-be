@@ -104,7 +104,7 @@ Common Suspension Cases & Checklist for Required Documents:
 
 **OUTPUT FORMAT:**
 
-Respond with a single valid JSON object and nothing else — no markdown fences, no preamble, no explanation outside the JSON. The JSON must strictly follow this schema:
+Respond with a single valid JSON object and nothing else - no markdown fences, no preamble, no explanation outside the JSON. Do not use markdown styling inside JSON string values; write plain professional text. The JSON must strictly follow this schema:
 
 {
 	"report": {

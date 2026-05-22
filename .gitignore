@@ -1,9 +1,11 @@
-.env
+# Environment variables
+*.env
 venv/
+
+# Cache and temporary files
 __pycache__/
 
 # Project specific files
-creds.txt
 scripts/
-
+creds.txt
 app/services/outputs

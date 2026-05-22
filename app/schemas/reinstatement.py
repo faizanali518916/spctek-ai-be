@@ -115,6 +115,10 @@ class ReinstatementLogResponse(BaseModel):
     appeals_made: int
     seller_belief: str
     available_documents: str
+    report_status: str = "pending"
+    report_error: str | None = None
+    report_generated_at: datetime | None = None
+    report_emailed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

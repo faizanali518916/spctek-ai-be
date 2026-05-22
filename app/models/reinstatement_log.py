@@ -1,5 +1,7 @@
 import uuid
-from sqlalchemy import String, Text, Integer, ForeignKey
+from datetime import datetime
+
+from sqlalchemy import String, Text, Integer, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base, TimestampMixin
@@ -19,5 +21,9 @@ class ReinstatementLog(Base, TimestampMixin):
     appeals_made: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     seller_belief: Mapped[str] = mapped_column(Text, nullable=False)
     available_documents: Mapped[str] = mapped_column(Text, nullable=False)
+    report_status: Mapped[str] = mapped_column(String(30), default="pending", server_default="pending", nullable=False)
+    report_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    report_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    report_emailed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     contact: Mapped["Contact"] = relationship("Contact", foreign_keys=[contact_id])

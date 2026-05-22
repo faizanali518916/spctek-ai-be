@@ -1,11 +1,12 @@
 import logging
 from time import perf_counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from starlette.concurrency import run_in_threadpool
 from app.schemas.reinstatement import (
     ReportRequest,
     ReportResponse,
@@ -17,14 +18,49 @@ from app.schemas.reinstatement import (
 from app.services.reinstatement import generate_report
 from app.services.formatter import write_formatted_report
 from app.services.email import send_reinstatement_report_email
-from app.database import get_db
+from app.database import get_db, async_session
 from app.models.reinstatement_log import ReinstatementLog
-from app.models.contact import Contact
+from app.models.contact import Contact, ContactSubmission
 
 logger = logging.getLogger(__name__)
 OUTPUTS_DIR = Path(__file__).resolve().parent.parent / "services" / "outputs"
 
 router = APIRouter(prefix="/reinstatement", tags=["Reinstatement"])
+
+
+async def set_report_status(log_id: UUID | None, status_value: str, error: str | None = None) -> None:
+    """Persist report/email progress when a saved log is available."""
+    if not log_id:
+        return
+
+    async with async_session() as session:
+        result = await session.execute(select(ReinstatementLog).where(ReinstatementLog.id == log_id))
+        log = result.scalar_one_or_none()
+        if not log:
+            logger.warning("Unable to update report status; log not found: %s", log_id)
+            return
+
+        log.report_status = status_value
+        log.report_error = error
+        now = datetime.now(timezone.utc)
+        if status_value in {"email_pending", "emailed", "email_failed"} and not log.report_generated_at:
+            log.report_generated_at = now
+        if status_value == "emailed":
+            log.report_emailed_at = now
+        await session.commit()
+
+
+async def get_contact_recipient_name(db: AsyncSession, contact: Contact) -> str:
+    result = await db.execute(
+        select(ContactSubmission.name)
+        .where(ContactSubmission.contact_id == contact.id, ContactSubmission.name.is_not(None))
+        .order_by(ContactSubmission.created_at.desc())
+        .limit(1)
+    )
+    name = result.scalar_one_or_none()
+    if name:
+        return name
+    return contact.email.split("@", 1)[0] if contact.email else "Customer"
 
 
 # Explicit OPTIONS handler for CORS preflight
@@ -39,6 +75,7 @@ async def send_report_email_background(
     report_data: dict,
     recipient_name: str,
     recipient_email: str,
+    log_id: UUID | None = None,
 ) -> None:
     """Background task to convert report to PDF and send via email."""
     try:
@@ -49,12 +86,14 @@ async def send_report_email_background(
 
         pdf_started = perf_counter()
         logger.info("Converting report to PDF for %s", recipient_email)
-        write_formatted_report(report_data, str(pdf_file_path))
+        await run_in_threadpool(write_formatted_report, report_data, str(pdf_file_path))
+        await set_report_status(log_id, "email_pending")
         logger.info("Background PDF render completed in %.2fs", perf_counter() - pdf_started)
 
         email_started = perf_counter()
         logger.info("Sending PDF email to %s", recipient_email)
-        success = send_reinstatement_report_email(
+        success = await run_in_threadpool(
+            send_reinstatement_report_email,
             recipient_email=recipient_email,
             recipient_name=recipient_name,
             pdf_file_path=pdf_file_path,
@@ -62,12 +101,15 @@ async def send_report_email_background(
         logger.info("Email send step completed in %.2fs", perf_counter() - email_started)
 
         if success:
+            await set_report_status(log_id, "emailed")
             logger.info(f"Report successfully sent to {recipient_email}")
         else:
+            await set_report_status(log_id, "email_failed", "Email service returned failure.")
             logger.error(f"Failed to send report to {recipient_email}")
 
         logger.info("Background reinstatement email task finished in %.2fs", perf_counter() - total_started)
     except Exception as e:
+        await set_report_status(log_id, "email_failed", str(e))
         logger.error(f"Error in background email task: {str(e)}", exc_info=True)
 
 
@@ -79,7 +121,7 @@ async def create_report(
 ):
     """Generate an Amazon reinstatement assessment report and email as PDF.
 
-    Accepts structured seller information and returns a markdown
+    Accepts structured seller information and returns a JSON
     report with root-cause analysis, document comparison, reinstatement
     chance percentages, and recommended next steps. Also sends the report
     as a PDF via email to the provided address.
@@ -93,7 +135,8 @@ async def create_report(
         )
         logger.debug(f"Request headers: {dict(request.headers)}")
 
-        report = generate_report(
+        report = await run_in_threadpool(
+            generate_report,
             performance_notification=payload.performance_notification,
             suspension_date=payload.suspension_date,
             business_model=payload.business_model,
@@ -228,8 +271,10 @@ async def list_reinstatement_logs(
         logs = result.scalars().all()
 
         # Get total count
-        count_result = await db.execute(select(ReinstatementLog).where(ReinstatementLog.contact_id == contact_id))
-        total = len(count_result.scalars().all())
+        count_result = await db.execute(
+            select(func.count()).select_from(ReinstatementLog).where(ReinstatementLog.contact_id == contact_id)
+        )
+        total = count_result.scalar_one()
 
         logger.info(f"Found {len(logs)} reinstatement logs for contact {contact_id}")
         return ReinstatementLogsListResponse(
@@ -281,8 +326,15 @@ async def generate_report_from_log(
                 detail="Associated contact not found",
             )
 
+        log.report_status = "generating"
+        log.report_error = None
+        log.report_generated_at = None
+        log.report_emailed_at = None
+        await db.commit()
+
         # Generate the report using the log data
-        report = generate_report(
+        report = await run_in_threadpool(
+            generate_report,
             performance_notification=log.performance_notification,
             suspension_date=log.suspension_date,
             business_model=log.business_model,
@@ -298,8 +350,9 @@ async def generate_report_from_log(
         background_tasks.add_task(
             send_report_email_background,
             report_data=report,
-            recipient_name=contact.name or "Customer",
+            recipient_name=await get_contact_recipient_name(db, contact),
             recipient_email=contact.email,
+            log_id=payload.log_id,
         )
 
         return ReportResponse(report=report)
@@ -307,18 +360,21 @@ async def generate_report_from_log(
     except HTTPException:
         raise
     except ValueError as ve:
+        await set_report_status(payload.log_id, "generation_failed", str(ve))
         logger.error("Validation error: %s", ve, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(ve),
         )
     except RuntimeError as re:
+        await set_report_status(payload.log_id, "generation_failed", str(re))
         logger.error("Service error: %s", re, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service temporarily unavailable. Please try again.",
         )
     except Exception as e:
+        await set_report_status(payload.log_id, "generation_failed", str(e))
         logger.error(f"Error generating report from log: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

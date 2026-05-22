@@ -10,9 +10,9 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-2.5-flash"
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 2.0
+GEMINI_MODEL = "gemini-3.5-flash"
 
 
 def _get_client() -> genai.Client:
@@ -38,6 +38,19 @@ def _extract_text(response: Any) -> str:
                 return part_text
 
     raise RuntimeError("Gemini returned no text content")
+
+
+def _strip_json_fence(text: str) -> str:
+    text = text.strip()
+    if not text.startswith("```"):
+        return text
+
+    lines = text.splitlines()
+    if lines and lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
 
 
 def generate(
@@ -68,9 +81,7 @@ def generate(
                 config=config,
             )
             text = _extract_text(response)
-            text = text.strip()
-            if text.startswith("```"):
-                text = text.strip("`")
+            text = _strip_json_fence(text)
             return json.loads(text)
         except Exception as exc:
             last_error = exc

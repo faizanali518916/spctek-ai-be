@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 
 from app.services.llm_client import generate
-from app.services.formatter import write_formatted_report
 from app.services.instructions import SYSTEM_INSTRUCTIONS
 
 logger = logging.getLogger(__name__)
@@ -59,7 +58,7 @@ def generate_report(
     """Generate a reinstatement assessment report.
 
     Sends all structured seller input to the LLM and returns the parsed
-    JSON report. Also writes a PDF copy to a temp file.
+    JSON report. PDF rendering is handled by the route/background email flow.
     """
     total_started = perf_counter()
 
@@ -102,15 +101,6 @@ def generate_report(
         json.dump(report, f, indent=2, ensure_ascii=False)
     logger.info("JSON report saved: %s", json_path)
     _log_duration("JSON write", step_started)
-
-    try:
-        step_started = perf_counter()
-        pdf_path = OUTPUTS_DIR / f"report_{timestamp}.pdf"
-        logger.info("Converting report to PDF: %s", pdf_path)
-        write_formatted_report(report, str(pdf_path))
-        _log_duration("PDF render", step_started)
-    except Exception as e:
-        logger.error(f"Error converting report to PDF: {e}", exc_info=True)
 
     _log_duration("Total reinstatement generation", total_started)
     return report

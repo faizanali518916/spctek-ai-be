@@ -5,5 +5,6 @@ from app.models.user import User
 from app.models.reinstatement_log import ReinstatementLog
 from app.models.metadeck import Metadeck
 from app.models.popup import Popup
+from app.models.automation_workflow import AutomationWorkflow
 
-__all__ = ["Contact", "Content", "Category", "User", "ReinstatementLog", "Metadeck", "Popup"]
+__all__ = ["Contact", "Content", "Category", "User", "ReinstatementLog", "Metadeck", "Popup", "AutomationWorkflow"]

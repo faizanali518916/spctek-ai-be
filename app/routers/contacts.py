@@ -114,8 +114,11 @@ async def create_contact(
         contact = Contact(email=contact_data.email)
         db.add(contact)
         await db.flush()
+        submission_payload = _submission_payload(contact_data)
+    else:
+        submission_payload = _submission_payload(contact_data, contact)
 
-    submission = ContactSubmission(contact_id=contact.id, **_submission_payload(contact_data, contact))
+    submission = ContactSubmission(contact_id=contact.id, **submission_payload)
     db.add(submission)
 
     try:

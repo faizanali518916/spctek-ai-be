@@ -260,6 +260,77 @@ def send_contact_thank_you_email(
         return False
 
 
+def send_system_workflow_email(
+    recipient_email: str,
+    recipient_name: str,
+    workflow_name: str = "your selected workflow",
+    company: str = "",
+) -> bool:
+    """
+    Send a booking-link email after a system automation workflow inquiry.
+
+    Args:
+        recipient_email: Email address to send to
+        recipient_name: Name of the recipient
+        workflow_name: Workflow the user selected
+        company: Company name (optional)
+
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    try:
+        settings = get_settings()
+
+        if not all([settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_HOST]):
+            logger.error("Email configuration incomplete - missing SMTP credentials")
+            return False
+
+        context = {
+            "name": recipient_name,
+            "workflow_name": workflow_name,
+            "company": company,
+            "calendly_link": "https://calendly.com/contact-spctek/30min",
+        }
+        html_content = render_template("system_workflow_email.html", context)
+        if not html_content:
+            logger.error("Failed to render system workflow email template")
+            return False
+
+        msg = MIMEMultipart("alternative")
+        msg["To"] = recipient_email
+        msg["From"] = f"SPCTEK AI <{settings.SMTP_USER}>"
+        msg["Subject"] = "Book Your SPCTEK AI Workflow Strategy Call"
+
+        text_content = (
+            f"Dear {recipient_name},\n\n"
+            f"Thank you for choosing {workflow_name}. "
+            "Your next step is to book a 30-minute strategy call with our team: "
+            "https://calendly.com/contact-spctek/30min"
+        )
+
+        msg.attach(MIMEText(text_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        logger.info(f"Sending system workflow email to {recipient_email}")
+
+        if settings.SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                server.send_message(msg)
+
+        logger.info(f"System workflow email successfully sent to {recipient_email}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to send system workflow email to {recipient_email}: {str(e)}", exc_info=True)
+        return False
+
+
 def send_reinstatement_report_email(
     recipient_email: str,
     recipient_name: str,

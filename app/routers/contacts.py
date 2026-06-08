@@ -10,7 +10,11 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.contact import Contact, ContactSubmission
 from app.schemas.contact import ContactCreate, ContactRead, ContactSubmissionRead, ContactUpdate
-from app.services.email import send_form_submission_email, send_contact_thank_you_email
+from app.services.email import (
+    send_contact_thank_you_email,
+    send_form_submission_email,
+    send_system_workflow_email,
+)
 
 router = APIRouter(prefix="/contacts", tags=["Contacts"])
 
@@ -155,6 +159,14 @@ async def create_contact(
                 recipient_name=contact_data.name or "there",
                 company=contact_data.company or "",
                 message=contact_data.message or "",
+            )
+        elif contact_data.source == "system_automation_workflow":
+            background_tasks.add_task(
+                send_system_workflow_email,
+                recipient_email=contact_data.email,
+                recipient_name=contact_data.name or "there",
+                workflow_name=(contact_data.journey or {}).get("workflow_name", "your selected workflow"),
+                company=contact_data.company or "",
             )
 
     return {

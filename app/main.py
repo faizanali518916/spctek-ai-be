@@ -1,13 +1,14 @@
 import os
 import logging
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
 from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck, popups
 from app.routers import automation_workflows
+from app.services.cache import CachedResponse, cache, cache_get, cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,75 @@ async def log_requests(request: Request, call_next):
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}", exc_info=True)
         raise
+
+
+@app.middleware("http")
+async def cache_responses(request: Request, call_next):
+    cacheable_request = (
+        request.method == "GET"
+        and "authorization" not in request.headers
+        and not request.url.path.startswith("/r2/images")
+    )
+    key = cache_key(request.method, str(request.url))
+
+    if cacheable_request:
+        hit, cached = cache_get(key)
+        if hit:
+            logger.info("Cache HIT: %s %s", request.method, request.url.path)
+            headers = dict(cached.headers)
+            headers["X-Cache"] = "HIT"
+            return Response(
+                content=cached.body,
+                status_code=cached.status_code,
+                media_type=cached.media_type,
+                headers=headers,
+            )
+    else:
+        logger.info("Cache BYPASS: %s %s", request.method, request.url.path)
+
+    response = await call_next(request)
+
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and 200 <= response.status_code < 400:
+        logger.info("Cache INVALIDATED: %s %s", request.method, request.url.path)
+        cache.clear()
+        return response
+
+    content_type = response.headers.get("content-type", "")
+    should_cache_response = (
+        cacheable_request
+        and response.status_code == 200
+        and content_type.startswith("application/json")
+        and "set-cookie" not in response.headers
+    )
+    if not should_cache_response:
+        if cacheable_request:
+            logger.info("Cache BYPASS: %s %s status=%s", request.method, request.url.path, response.status_code)
+        return response
+
+    body = b"".join([chunk async for chunk in response.body_iterator])
+    headers = {
+        key: value
+        for key, value in response.headers.items()
+        if key.lower() not in {"content-length", "content-encoding", "transfer-encoding"}
+    }
+    media_type = content_type.split(";", 1)[0] if content_type else response.media_type
+
+    cached = CachedResponse(
+        body=body,
+        status_code=response.status_code,
+        media_type=media_type,
+        headers=headers,
+    )
+    cache.set(key, cached)
+    logger.info("Cache MISS: %s %s", request.method, request.url.path)
+
+    headers["X-Cache"] = "MISS"
+    return Response(
+        content=body,
+        status_code=response.status_code,
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 app.include_router(auth.router)

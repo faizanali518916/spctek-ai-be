@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     GOOGLE_API_KEY: str
     DEPLOY_PASSWORD: str
+    CACHE_ENABLED: bool = True
+    CACHE_TTL_SECONDS: int = 300
 
     # R2 Storage Settings
     R2_ACCOUNT_ID: str

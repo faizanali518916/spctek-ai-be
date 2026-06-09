@@ -48,9 +48,17 @@ PUBLIC_CACHE_PATH_PREFIXES = (
     "/popups",
 )
 
+CACHE_BYPASS_PATH_PREFIXES = (
+    "/deploy",
+)
+
 
 def is_public_cache_path(path: str) -> bool:
     return any(path == prefix or path.startswith(f"{prefix}/") for prefix in PUBLIC_CACHE_PATH_PREFIXES)
+
+
+def is_cache_bypass_path(path: str) -> bool:
+    return any(path == prefix or path.startswith(f"{prefix}/") for prefix in CACHE_BYPASS_PATH_PREFIXES)
 
 
 app.add_middleware(
@@ -79,10 +87,13 @@ async def log_requests(request: Request, call_next):
 async def cache_responses(request: Request, call_next):
     auth_header_present = "authorization" in request.headers
     public_cache_path = is_public_cache_path(request.url.path)
+    bypass_cache_path = is_cache_bypass_path(request.url.path)
 
     bypass_reasons = []
     if request.method != "GET":
         bypass_reasons.append("method")
+    if bypass_cache_path:
+        bypass_reasons.append("path")
     if auth_header_present and not public_cache_path:
         bypass_reasons.append("authorization")
     if request.url.path.startswith("/r2/images"):
@@ -90,6 +101,7 @@ async def cache_responses(request: Request, call_next):
 
     cacheable_request = (
         request.method == "GET"
+        and not bypass_cache_path
         and (not auth_header_present or public_cache_path)
         and not request.url.path.startswith("/r2/images")
     )

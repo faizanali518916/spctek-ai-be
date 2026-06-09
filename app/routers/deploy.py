@@ -1,6 +1,5 @@
 import json
 import os
-import stat
 import subprocess
 from datetime import datetime
 from pydantic import BaseModel
@@ -69,6 +68,9 @@ async def deployment_status():
     recent_error_lines = [line for line in read_recent_log_lines(DEPLOYMENT_ERROR_LOG) if is_error_line(line)]
     last_error = parse_deployment_error(recent_error_lines[-1]) if recent_error_lines else None
 
+    if status_data and status_data.get("status") in {"running", "success"}:
+        last_error = None
+
     log_files = []
     if os.path.isdir(LOG_DIR):
         for name in sorted(os.listdir(LOG_DIR)):
@@ -111,10 +113,8 @@ async def deployment_status():
 @router.post("")
 async def deploy(request: DeployRequest):
     """
-    Triggers the update.sh script and returns immediately.
-    Ensures the script has executable permissions before running.
+    Triggers the update.sh script in a fully detached background process.
     """
-    # 1. Verify Authentication
     deploy_password = settings.DEPLOY_PASSWORD
 
     if not deploy_password:
@@ -133,43 +133,30 @@ async def deploy(request: DeployRequest):
 
     script_path = os.path.join(PROJECT_DIR, "update.sh")
 
-    # 2. Automatically make update.sh executable (chmod +x)
-    try:
-        if os.path.exists(script_path):
-            # Get current file permissions
-            st = os.stat(script_path)
-            # Add user, group, and other executable permissions (equivalent to +x)
-            os.chmod(script_path, st.st_mode | stat.S_IEXEC)
-        else:
-            log_deployment_error(f"update.sh not found at {script_path}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"update.sh not found at {script_path}",
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_deployment_error(f"Failed to set executable permissions on update.sh: {str(e)}")
+    if not os.path.exists(script_path):
+        log_deployment_error(f"update.sh not found at {script_path}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to set executable permissions on update.sh: {str(e)}",
+            detail=f"update.sh not found at {script_path}",
         )
 
-    # 3. Trigger the script in the background (Non-blocking)
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
-        with open(DEPLOYMENT_LOG, "a", encoding="utf-8") as deployment_log:
-            subprocess.Popen(
-                ["bash", "./update.sh"],
-                cwd=PROJECT_DIR,
-                stdout=deployment_log,
-                stderr=deployment_log,
-            )
+
+        subprocess.Popen(
+            ["bash", script_path],
+            cwd=PROJECT_DIR,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
 
         # 4. Return immediate success response before the server restarts
         return {
             "success": True,
-            "message": "Deployment initiated successfully. Server is pulling changes and restarting.",
+            "message": "Deployment started in background.",
         }
 
     except Exception as e:

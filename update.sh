@@ -40,8 +40,9 @@ trap 'on_error "$?" "$LINENO"' ERR
 
 write_status "running"
 
-# Pull latest changes
-git pull origin main
+# Set latest
+git fetch origin main
+git reset --hard origin/main
 
 # Install dependencies
 ./venv/bin/pip install -r requirements.txt

@@ -1,9 +1,9 @@
-import os
 import logging
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from app.config import get_settings
 from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck, popups
@@ -26,13 +26,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
-updated_at = os.environ.get("DEPLOYMENT_UPDATED_AT", "Unknown")
-description = f"Backend API for SPCTEK AI platform.\n\n**🚀 Last Deployed At:** `{updated_at}`"
-
 app = FastAPI(
     version="1.0.0",
     title="SPCTEK AI API",
-    description=description,
+    description="Backend API for SPCTEK AI platform.",
     lifespan=lifespan,
 )
 

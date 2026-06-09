@@ -6,6 +6,7 @@ venv/
 __pycache__/
 
 # Project specific files
+logs/
 scripts/
 creds.txt
 app/services/outputs

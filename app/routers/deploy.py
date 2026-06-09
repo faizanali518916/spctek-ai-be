@@ -1,5 +1,6 @@
-import json
 import os
+import json
+import shlex
 import subprocess
 from datetime import datetime
 from pydantic import BaseModel
@@ -143,8 +144,13 @@ async def deploy(request: DeployRequest):
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
 
+        launch_command = (
+            f"cd {shlex.quote(PROJECT_DIR)} "
+            f"&& nohup setsid bash {shlex.quote(script_path)} >/dev/null 2>&1 < /dev/null &"
+        )
+
         subprocess.Popen(
-            ["bash", script_path],
+            ["bash", "-lc", launch_command],
             cwd=PROJECT_DIR,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,

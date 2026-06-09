@@ -49,6 +49,19 @@ on_error() {
 
 trap 'on_error "$?" "$LINENO"' ERR
 
+on_signal() {
+    local signal="$1"
+    local message="Deployment interrupted by signal ${signal}"
+
+    log_error "$message"
+    write_status "failed" "interrupted" "$message"
+    exit 1
+}
+
+trap 'on_signal "TERM"' TERM
+trap 'on_signal "INT"' INT
+trap 'on_signal "HUP"' HUP
+
 # Prevent multiple deployments running at the same time.
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then

@@ -1,11 +1,12 @@
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
 
 from app.config import get_settings
 
-
 _MISSING = object()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,6 +24,7 @@ class TTLCache:
     def get(self, key: str) -> Any:
         settings = get_settings()
         if not settings.CACHE_ENABLED:
+            logger.info("Cache DISABLED: %s", key)
             return _MISSING
 
         item = self._store.get(key)
@@ -32,6 +34,7 @@ class TTLCache:
         expires_at, value = item
         if expires_at <= time.monotonic():
             self._store.pop(key, None)
+            logger.info("Cache EXPIRED: %s", key)
             return _MISSING
 
         return value
@@ -39,13 +42,16 @@ class TTLCache:
     def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> Any:
         settings = get_settings()
         if not settings.CACHE_ENABLED:
+            logger.info("Cache SKIP STORE disabled: %s", key)
             return value
 
         ttl = ttl_seconds if ttl_seconds is not None else settings.CACHE_TTL_SECONDS
         self._store[key] = (time.monotonic() + ttl, value)
+        logger.info("Cache STORE: %s ttl=%ss", key, ttl)
         return value
 
     def clear(self) -> None:
+        logger.info("Cache CLEAR: entries=%s", len(self._store))
         self._store.clear()
 
 

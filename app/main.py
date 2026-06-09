@@ -10,6 +10,10 @@ from app.routers import auth, authors, content, contacts, categories, reinstatem
 from app.routers import automation_workflows
 from app.services.cache import CachedResponse, cache, cache_get, cache_key
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
@@ -38,6 +42,20 @@ CORS_ORIGINS = [
     "http://localhost:3000",
 ]
 
+PUBLIC_CACHE_PATH_PREFIXES = (
+    "/authors",
+    "/automation-workflows",
+    "/categories",
+    "/content",
+    "/metadeck",
+    "/popups",
+)
+
+
+def is_public_cache_path(path: str) -> bool:
+    return any(path == prefix or path.startswith(f"{prefix}/") for prefix in PUBLIC_CACHE_PATH_PREFIXES)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_methods=["*"],
@@ -62,9 +80,20 @@ async def log_requests(request: Request, call_next):
 
 @app.middleware("http")
 async def cache_responses(request: Request, call_next):
+    auth_header_present = "authorization" in request.headers
+    public_cache_path = is_public_cache_path(request.url.path)
+
+    bypass_reasons = []
+    if request.method != "GET":
+        bypass_reasons.append("method")
+    if auth_header_present and not public_cache_path:
+        bypass_reasons.append("authorization")
+    if request.url.path.startswith("/r2/images"):
+        bypass_reasons.append("r2-images")
+
     cacheable_request = (
         request.method == "GET"
-        and "authorization" not in request.headers
+        and (not auth_header_present or public_cache_path)
         and not request.url.path.startswith("/r2/images")
     )
     key = cache_key(request.method, str(request.url))
@@ -82,7 +111,12 @@ async def cache_responses(request: Request, call_next):
                 headers=headers,
             )
     else:
-        logger.info("Cache BYPASS: %s %s", request.method, request.url.path)
+        logger.info(
+            "Cache BYPASS: %s %s reason=%s",
+            request.method,
+            request.url.path,
+            ",".join(bypass_reasons) or "unknown",
+        )
 
     response = await call_next(request)
 

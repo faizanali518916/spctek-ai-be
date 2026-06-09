@@ -337,7 +337,9 @@ async def collect_used_images(db: AsyncSession) -> tuple[list[R2UsedImage], int,
 
     metadeck_result = await db.execute(select(Metadeck))
     for metadeck in metadeck_result.scalars().all():
-        add_used_images_from_urls(used_images, extract_image_urls(metadeck.description), "metadeck", metadeck.id, "description")
+        add_used_images_from_urls(
+            used_images, extract_image_urls(metadeck.description), "metadeck", metadeck.id, "description"
+        )
 
     submission_result = await db.execute(select(ContactSubmission))
     for submission in submission_result.scalars().all():
@@ -448,11 +450,7 @@ async def delete_orphaned_r2_images(db: AsyncSession = Depends(get_db)):
     audit = await build_image_audit(db)
     used_keys = {image.key for image in audit.used_images}
     bucket_keys = {image.key for image in audit.bucket_images}
-    safe_orphans = [
-        image
-        for image in audit.orphaned_images
-        if image.key in bucket_keys and image.key not in used_keys
-    ]
+    safe_orphans = [image for image in audit.orphaned_images if image.key in bucket_keys and image.key not in used_keys]
 
     if not safe_orphans:
         return R2OrphanDeleteResponse(

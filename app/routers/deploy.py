@@ -11,6 +11,7 @@ settings = get_settings()
 router = APIRouter(prefix="/deploy", tags=["Deployment"])
 PROJECT_DIR = "/home/spc/Desktop/spctekai-backend"
 LOG_DIR = os.path.join(PROJECT_DIR, "logs")
+DEPLOYMENT_LOG = os.path.join(LOG_DIR, "deployment.log")
 DEPLOYMENT_ERROR_LOG = os.path.join(LOG_DIR, "deployment_errors.log")
 DEPLOYMENT_STATUS_FILE = os.path.join(LOG_DIR, "deployment_status.json")
 
@@ -53,14 +54,20 @@ def parse_deployment_error(line: str) -> dict[str, str | None]:
     return {"timestamp": None, "level": None, "message": line}
 
 
+def is_error_line(line: str) -> bool:
+    parts = line.split(" ", 3)
+    return len(parts) == 4 and parts[2] == "ERROR"
+
+
 @router.get("/status")
 async def deployment_status():
     """
     Returns the latest deployment status by reading files in the logs directory.
     """
     status_data = read_json_file(DEPLOYMENT_STATUS_FILE)
-    recent_errors = read_recent_log_lines(DEPLOYMENT_ERROR_LOG)
-    last_error = parse_deployment_error(recent_errors[-1]) if recent_errors else None
+    recent_log = read_recent_log_lines(DEPLOYMENT_LOG)
+    recent_error_lines = [line for line in read_recent_log_lines(DEPLOYMENT_ERROR_LOG) if is_error_line(line)]
+    last_error = parse_deployment_error(recent_error_lines[-1]) if recent_error_lines else None
 
     log_files = []
     if os.path.isdir(LOG_DIR):
@@ -90,9 +97,11 @@ async def deployment_status():
     return {
         "status": current_status,
         "last_run": last_run,
-        "last_success": status_data,
+        "deployment": status_data,
+        "last_success": status_data if current_status == "success" else None,
         "last_error": last_error,
-        "recent_errors": recent_errors,
+        "recent_errors": recent_error_lines,
+        "recent_log": recent_log,
         "logs_directory": LOG_DIR,
         "logs_directory_exists": os.path.isdir(LOG_DIR),
         "files": log_files,
@@ -149,11 +158,12 @@ async def deploy(request: DeployRequest):
     # 3. Trigger the script in the background (Non-blocking)
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
-        with open(DEPLOYMENT_ERROR_LOG, "a", encoding="utf-8") as error_log:
+        with open(DEPLOYMENT_LOG, "a", encoding="utf-8") as deployment_log:
             subprocess.Popen(
                 ["bash", "./update.sh"],
                 cwd=PROJECT_DIR,
-                stderr=error_log,
+                stdout=deployment_log,
+                stderr=deployment_log,
             )
 
         # 4. Return immediate success response before the server restarts

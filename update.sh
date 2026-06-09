@@ -6,12 +6,24 @@ cd /home/spc/Desktop/spctekai-backend
 set -Eeuo pipefail
 
 LOG_DIR="logs"
+DEPLOYMENT_LOG="$LOG_DIR/deployment.log"
 ERROR_LOG="$LOG_DIR/deployment_errors.log"
 STATUS_FILE="$LOG_DIR/deployment_status.json"
 
 mkdir -p "$LOG_DIR"
-exec 2>> "$ERROR_LOG"
+exec >> "$DEPLOYMENT_LOG" 2>&1
+DEPLOY_TIME=$(date +"%Y-%m-%d %H:%M:%S")
 rm -f "$STATUS_FILE"
+
+write_status() {
+    local status="$1"
+    cat > "$STATUS_FILE" <<EOF
+{
+  "status": "$status",
+  "last_run": "$DEPLOY_TIME"
+}
+EOF
+}
 
 log_error() {
     echo "$(date +"%Y-%m-%d %H:%M:%S") ERROR $1" >> "$ERROR_LOG"
@@ -21,9 +33,12 @@ on_error() {
     local exit_code="$1"
     local line_number="$2"
     log_error "Deployment failed at line ${line_number} with exit code ${exit_code}"
+    write_status "failed"
 }
 
 trap 'on_error "$?" "$LINENO"' ERR
+
+write_status "running"
 
 # Pull latest changes
 git pull origin main
@@ -31,16 +46,8 @@ git pull origin main
 # Install dependencies
 ./venv/bin/pip install -r requirements.txt
 
-# Generate the current timestamp (e.g., 2026-05-13 22:05:12)
-DEPLOY_TIME=$(date +"%Y-%m-%d %H:%M:%S")
-
 # Restart via PM2
 pm2 restart spctekai-backend
 
 # Record successful deployment status
-cat > "$STATUS_FILE" <<EOF
-{
-  "status": "success",
-  "last_run": "$DEPLOY_TIME"
-}
-EOF
+write_status "success"

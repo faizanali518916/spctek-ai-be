@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.routers import auth, authors, content, contacts, categories, reinstatement, deploy, r2, metadeck, popups
-from app.routers import automation_workflows
+from app.routers import automation_workflows, statuses
 from app.services.cache import CachedResponse, cache, cache_get, cache_key
 
 logging.basicConfig(
@@ -48,9 +48,7 @@ PUBLIC_CACHE_PATH_PREFIXES = (
     "/popups",
 )
 
-CACHE_BYPASS_PATH_PREFIXES = (
-    "/deploy",
-)
+CACHE_BYPASS_PATH_PREFIXES = ("/deploy",)
 
 
 def is_public_cache_path(path: str) -> bool:
@@ -177,6 +175,7 @@ app.include_router(authors.router)
 app.include_router(content.router)
 app.include_router(contacts.router)
 app.include_router(categories.router)
+app.include_router(statuses.router)
 app.include_router(reinstatement.router)
 app.include_router(deploy.router)
 app.include_router(r2.router)

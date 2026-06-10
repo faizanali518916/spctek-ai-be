@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 class ContactBase(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
+    status_id: uuid.UUID | None = None
     phone: str | None = None
     company: str | None = None
     message: str | None = None
@@ -41,6 +42,7 @@ class ContactSubmissionRead(BaseModel):
 
 class ContactRead(ContactBase):
     id: uuid.UUID
+    status_code: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     submissions: list[ContactSubmissionRead] | None = None

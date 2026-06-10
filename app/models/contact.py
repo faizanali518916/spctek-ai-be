@@ -1,5 +1,6 @@
 import uuid
 from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -10,10 +11,16 @@ class Contact(Base):
     __tablename__ = "contacts"
 
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    status_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("statuses.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     submissions: Mapped[list["ContactSubmission"]] = relationship(
         back_populates="contact", cascade="all, delete-orphan"
     )
+    status: Mapped["Status | None"] = relationship("Status", back_populates="contacts")
 
 
 class ContactSubmission(Base, TimestampMixin):

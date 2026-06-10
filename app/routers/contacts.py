@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.contact import Contact, ContactSubmission
+from app.models.status import Status
 from app.schemas.contact import ContactCreate, ContactRead, ContactSubmissionRead, ContactUpdate
 from app.services.email import (
     send_contact_thank_you_email,
@@ -49,6 +50,8 @@ def _contact_response(contact: Contact, detail: bool = False) -> dict:
     response = {
         "id": contact.id,
         "email": contact.email,
+        "status_id": contact.status_id,
+        "status_code": contact.status.code if contact.status else None,
         "name": latest_submission.name if latest_submission else None,
         "phone": latest_submission.phone if latest_submission else None,
         "company": latest_submission.company if latest_submission else None,
@@ -93,8 +96,29 @@ def _submission_payload(
 
 
 async def _load_contacts(db: AsyncSession) -> list[Contact]:
-    result = await db.execute(select(Contact).options(selectinload(Contact.submissions)))
+    result = await db.execute(select(Contact).options(selectinload(Contact.submissions), selectinload(Contact.status)))
     return result.scalars().unique().all()
+
+
+async def _load_contact(db: AsyncSession, contact_id: uuid.UUID) -> Contact | None:
+    result = await db.execute(
+        select(Contact)
+        .options(selectinload(Contact.submissions), selectinload(Contact.status))
+        .where(Contact.id == contact_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _ensure_status_exists(status_id: uuid.UUID | None, db: AsyncSession) -> None:
+    if status_id is None:
+        return
+
+    result = await db.execute(select(Status.id).where(Status.id == status_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Status not found",
+        )
 
 
 @router.post("", response_model=ContactRead, response_model_exclude_none=True, status_code=status.HTTP_201_CREATED)
@@ -108,18 +132,25 @@ async def create_contact(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Email is required",
         )
+    status_provided = "status_id" in contact_data.model_fields_set
+    if status_provided:
+        await _ensure_status_exists(contact_data.status_id, db)
 
     result = await db.execute(
-        select(Contact).options(selectinload(Contact.submissions)).where(Contact.email == contact_data.email)
+        select(Contact)
+        .options(selectinload(Contact.submissions), selectinload(Contact.status))
+        .where(Contact.email == contact_data.email)
     )
     contact = result.scalar_one_or_none()
 
     if contact is None:
-        contact = Contact(email=contact_data.email)
+        contact = Contact(email=contact_data.email, status_id=contact_data.status_id)
         db.add(contact)
         await db.flush()
         submission_payload = _submission_payload(contact_data)
     else:
+        if status_provided:
+            contact.status_id = contact_data.status_id
         submission_payload = _submission_payload(contact_data, contact)
 
     submission = ContactSubmission(contact_id=contact.id, **submission_payload)
@@ -131,17 +162,25 @@ async def create_contact(
         await db.rollback()
 
         result = await db.execute(
-            select(Contact).options(selectinload(Contact.submissions)).where(Contact.email == contact_data.email)
+            select(Contact)
+            .options(selectinload(Contact.submissions), selectinload(Contact.status))
+            .where(Contact.email == contact_data.email)
         )
         contact = result.scalar_one_or_none()
         if contact is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create contact")
+
+        if status_provided:
+            contact.status_id = contact_data.status_id
 
         submission = ContactSubmission(contact_id=contact.id, **_submission_payload(contact_data, contact))
         db.add(submission)
         await db.commit()
 
     await db.refresh(submission)
+    refreshed_contact = await _load_contact(db, contact.id)
+    if refreshed_contact is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load contact")
 
     if contact_data.email:
         if contact_data.source in ["process_diagnostic", "ai_deployment_roadmap", "ai_playbook"]:
@@ -169,18 +208,7 @@ async def create_contact(
                 company=contact_data.company or "",
             )
 
-    return {
-        "id": contact.id,
-        "email": contact.email,
-        "name": submission.name,
-        "phone": submission.phone,
-        "company": submission.company,
-        "message": submission.message,
-        "source": submission.source,
-        "journey": submission.journey,
-        "created_at": submission.created_at,
-        "updated_at": submission.updated_at,
-    }
+    return _contact_response(refreshed_contact)
 
 
 @router.get("", response_model=list[ContactRead], response_model_exclude_none=True)
@@ -211,7 +239,9 @@ async def get_contact(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Contact).options(selectinload(Contact.submissions)).where(Contact.id == contact_id)
+        select(Contact)
+        .options(selectinload(Contact.submissions), selectinload(Contact.status))
+        .where(Contact.id == contact_id)
     )
     contact = result.scalar_one_or_none()
     if contact is None:
@@ -229,7 +259,9 @@ async def update_contact(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Contact).options(selectinload(Contact.submissions)).where(Contact.id == contact_id)
+        select(Contact)
+        .options(selectinload(Contact.submissions), selectinload(Contact.status))
+        .where(Contact.id == contact_id)
     )
     contact = result.scalar_one_or_none()
     if contact is None:
@@ -256,6 +288,10 @@ async def update_contact(
             )
         contact.email = update_data["email"]
 
+    if "status_id" in update_data:
+        await _ensure_status_exists(update_data["status_id"], db)
+        contact.status_id = update_data["status_id"]
+
     should_append_submission = any(
         field in update_data for field in ("name", "phone", "company", "message", "source", "journey")
     )
@@ -275,23 +311,15 @@ async def update_contact(
             detail="A contact with this email already exists",
         )
     await db.refresh(contact)
+    refreshed_contact = await _load_contact(db, contact.id)
+    if refreshed_contact is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load contact")
 
     if should_append_submission:
         await db.refresh(submission)
-        return {
-            "id": contact.id,
-            "email": contact.email,
-            "name": submission.name,
-            "phone": submission.phone,
-            "company": submission.company,
-            "message": submission.message,
-            "source": submission.source,
-            "journey": submission.journey,
-            "created_at": submission.created_at,
-            "updated_at": submission.updated_at,
-        }
+        return _contact_response(refreshed_contact)
 
-    return _contact_response(contact)
+    return _contact_response(refreshed_contact)
 
 
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
